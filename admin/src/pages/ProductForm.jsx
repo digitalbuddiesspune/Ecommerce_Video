@@ -1,0 +1,495 @@
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import {
+  createProduct,
+  fetchCategories,
+  fetchProduct,
+  updateProduct,
+} from '../api/client'
+import FormStep from '../components/FormStep'
+import MediaTypeSelector from '../components/MediaTypeSelector'
+import PricingModeSelector from '../components/PricingModeSelector'
+import ResolutionTierEditor from '../components/ResolutionTierEditor'
+import VideoPreview from '../components/VideoPreview'
+import {
+  compactFormClass,
+  inputClass,
+  primaryBtnClass,
+  secondaryBtnClass,
+} from '../components/ui/adminUi'
+import { MEDIA_TYPES } from '../constants/mediaTypes'
+import { PRICING_MODES } from '../constants/pricingModes'
+import {
+  RESOLUTION_ORDER,
+  RESOLUTION_TIERS,
+  buildDefaultTierConfig,
+} from '../constants/resolutionTiers'
+
+const mergeTierConfig = (product = {}) => {
+  const source = product.imageSizes || product.resolutionPricing
+  const basePrice = Number(product.price) || 499
+
+  return Object.fromEntries(
+    RESOLUTION_ORDER.map((tier) => {
+      const stored = source?.[tier] || {}
+      const defaults = RESOLUTION_TIERS[tier]
+      const scaled = buildDefaultTierConfig(basePrice)[tier]
+
+      return [
+        tier,
+        {
+          resolution: stored.resolution || defaults.resolution,
+          size: stored.size || defaults.size,
+          price: stored.price ?? scaled.price,
+        },
+      ]
+    })
+  )
+}
+
+const emptyForm = (mediaType = MEDIA_TYPES.VIDEO) => ({
+  mediaType,
+  pricingMode: PRICING_MODES.UNIFORM,
+  name: '',
+  categorySlug: '',
+  subCategorySlug: '',
+  brand: '',
+  price: 499,
+  resolutionPricing: buildDefaultTierConfig(499),
+  rating: 4.5,
+  description: '',
+  images: ['', '', ''],
+  demoVideo: '',
+  videoPoster: '',
+  isActive: true,
+  videoInfo: {
+    quality: '4K UHD (3840×2160)',
+    fps: mediaType === MEDIA_TYPES.VIDEO ? '30 fps' : '',
+    size: mediaType === MEDIA_TYPES.VIDEO ? '200 MB' : '18 MB',
+    duration: mediaType === MEDIA_TYPES.VIDEO ? '0:15' : '',
+    format: mediaType === MEDIA_TYPES.VIDEO ? 'MP4 / H.264' : 'JPEG / PNG',
+  },
+})
+
+const ProductForm = () => {
+  const { id } = useParams()
+  const navigate = useNavigate()
+  const isEdit = Boolean(id)
+
+  const [categories, setCategories] = useState([])
+  const [form, setForm] = useState(emptyForm())
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const categoriesRes = await fetchCategories()
+        setCategories(categoriesRes.data)
+
+        if (isEdit) {
+          const productRes = await fetchProduct(id)
+          const product = productRes.data
+          const mediaType = product.mediaType || MEDIA_TYPES.VIDEO
+
+          setForm({
+            mediaType,
+            pricingMode: product.pricingMode || PRICING_MODES.UNIFORM,
+            name: product.name,
+            categorySlug: product.categorySlug,
+            subCategorySlug: product.subCategory || '',
+            brand: product.brand || '',
+            price: product.price,
+            resolutionPricing: mergeTierConfig(product),
+            rating: product.rating || 0,
+            description: product.description || '',
+            images: [
+              product.images?.[0] || '',
+              product.images?.[1] || '',
+              product.images?.[2] || '',
+            ],
+            demoVideo: product.demoVideo || '',
+            videoPoster: product.videoPoster || '',
+            isActive: product.isActive ?? true,
+            videoInfo: {
+              quality: product.videoInfo?.quality || '',
+              fps: product.videoInfo?.fps || '',
+              size: product.videoInfo?.size || '',
+              duration: product.videoInfo?.duration || '',
+              format: product.videoInfo?.format || '',
+            },
+          })
+        }
+      } catch (err) {
+        setError(err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadData()
+  }, [id, isEdit])
+
+  const isVideo = form.mediaType === MEDIA_TYPES.VIDEO
+  const isUniformPricing = form.pricingMode === PRICING_MODES.UNIFORM
+
+  const selectedCategory = useMemo(
+    () => categories.find((category) => category.slug === form.categorySlug),
+    [categories, form.categorySlug]
+  )
+
+  const updateField = (field, value) => {
+    setForm((current) => ({ ...current, [field]: value }))
+  }
+
+  const updatePricingMode = (pricingMode) => {
+    setForm((current) => ({
+      ...current,
+      pricingMode,
+      resolutionPricing:
+        pricingMode === PRICING_MODES.CUSTOM
+          ? mergeTierConfig({
+              price: current.price,
+              imageSizes: current.resolutionPricing,
+            })
+          : current.resolutionPricing,
+    }))
+  }
+
+  const updateTierField = (tier, field, value) => {
+    setForm((current) => ({
+      ...current,
+      resolutionPricing: {
+        ...current.resolutionPricing,
+        [tier]: {
+          ...current.resolutionPricing[tier],
+          [field]: value,
+        },
+      },
+    }))
+  }
+
+  const updateMediaType = (mediaType) => {
+    setForm((current) => ({
+      ...emptyForm(mediaType),
+      mediaType,
+      name: current.name,
+      categorySlug: current.categorySlug,
+      subCategorySlug: current.subCategorySlug,
+      brand: current.brand,
+      price: current.price,
+      rating: current.rating,
+      description: current.description,
+      images: current.images,
+      isActive: current.isActive,
+      demoVideo: mediaType === MEDIA_TYPES.VIDEO ? current.demoVideo : '',
+      videoPoster: mediaType === MEDIA_TYPES.VIDEO ? current.videoPoster : current.images[0] || '',
+    }))
+  }
+
+  const updateVideoInfo = (field, value) => {
+    setForm((current) => ({
+      ...current,
+      videoInfo: { ...current.videoInfo, [field]: value },
+    }))
+  }
+
+  const updateImage = (index, value) => {
+    setForm((current) => ({
+      ...current,
+      images: current.images.map((image, imageIndex) =>
+        imageIndex === index ? value : image
+      ),
+      videoPoster:
+        current.mediaType === MEDIA_TYPES.VIDEO && index === 0 && !current.videoPoster
+          ? value
+          : current.videoPoster,
+    }))
+  }
+
+  const validateClient = () => {
+    const imageCount = form.images.filter(Boolean).length
+    if (!form.name.trim()) return 'Product name is required'
+    if (!form.categorySlug) return 'Category is required'
+    if (!imageCount) return 'At least one preview image is required'
+    if (isVideo && !form.demoVideo.trim()) return 'Demo video URL is required for video products'
+    const missingSize = RESOLUTION_ORDER.find((tier) => {
+      const tierData = form.resolutionPricing?.[tier] || {}
+      return !tierData.size?.trim()
+    })
+    if (missingSize) return `Set file size for ${missingSize}`
+
+    if (form.pricingMode === PRICING_MODES.UNIFORM) {
+      if (!Number(form.price) || Number(form.price) < 0) return 'Valid price is required'
+    } else {
+      const missingPrice = RESOLUTION_ORDER.find(
+        (tier) => !Number(form.resolutionPricing?.[tier]?.price)
+      )
+      if (missingPrice) return `Enter a price for ${missingPrice}`
+    }
+    return ''
+  }
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    const clientError = validateClient()
+    if (clientError) {
+      setError(clientError)
+      return
+    }
+
+    setSaving(true)
+    setError('')
+
+    const payload = {
+      ...form,
+      images: form.images.filter(Boolean),
+      price: Number(form.price),
+      rating: Number(form.rating),
+      resolutionPricing: Object.fromEntries(
+        RESOLUTION_ORDER.map((tier) => {
+          const tierData = form.resolutionPricing[tier] || {}
+          return [
+            tier,
+            {
+              resolution: tierData.resolution?.trim() || RESOLUTION_TIERS[tier].resolution,
+              size: tierData.size?.trim() || RESOLUTION_TIERS[tier].size,
+              price: isUniformPricing
+                ? Number(form.price)
+                : Number(tierData.price),
+            },
+          ]
+        })
+      ),
+      videoPoster: isVideo
+        ? form.videoPoster || form.images.find(Boolean) || ''
+        : form.images.find(Boolean) || '',
+    }
+
+    try {
+      if (isEdit) {
+        await updateProduct(id, payload)
+      } else {
+        await createProduct(payload)
+      }
+      navigate('/products')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return <p className="text-sm text-slate-500">Loading product...</p>
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Products</p>
+          <h1 className="text-2xl font-bold text-slate-900">
+            {isEdit ? 'Edit Product' : 'Add Product'}
+          </h1>
+        </div>
+        <Link to="/products" className={secondaryBtnClass}>
+          Back
+        </Link>
+      </div>
+
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className={compactFormClass}>
+        <FormStep
+          step="1"
+          title="What are you selling?"
+          hint="Video includes demo clip. Image sells still files only."
+          tone="slate"
+        >
+          <MediaTypeSelector
+            value={form.mediaType}
+            onChange={updateMediaType}
+            disabled={isEdit}
+          />
+          {isEdit && (
+            <p className="mt-2 text-xs text-slate-500">
+              Media type cannot be changed after creation.
+            </p>
+          )}
+        </FormStep>
+
+        <FormStep step="2" title="Product details" tone="sky">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block text-sm sm:col-span-2">
+              <span className="font-medium text-slate-700">Product Name</span>
+              <input required value={form.name} onChange={(e) => updateField('name', e.target.value)} className={inputClass} />
+            </label>
+
+            <label className="block text-sm">
+              <span className="font-medium text-slate-700">Category</span>
+              <select
+                required
+                value={form.categorySlug}
+                onChange={(e) => {
+                  updateField('categorySlug', e.target.value)
+                  updateField('subCategorySlug', '')
+                }}
+                className={inputClass}
+              >
+                <option value="">Select category</option>
+                {categories.map((category) => (
+                  <option key={category._id} value={category.slug}>{category.navLabel}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block text-sm">
+              <span className="font-medium text-slate-700">Subcategory</span>
+              <select value={form.subCategorySlug} onChange={(e) => updateField('subCategorySlug', e.target.value)} className={inputClass}>
+                <option value="">None</option>
+                {selectedCategory?.subCategories?.map((subCategory) => (
+                  <option key={subCategory.slug} value={subCategory.slug}>{subCategory.name}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block text-sm">
+              <span className="font-medium text-slate-700">Brand</span>
+              <input value={form.brand} onChange={(e) => updateField('brand', e.target.value)} className={inputClass} />
+            </label>
+
+            <label className="block text-sm">
+              <span className="font-medium text-slate-700">Rating</span>
+              <input type="number" min="0" max="5" step="0.1" value={form.rating} onChange={(e) => updateField('rating', e.target.value)} className={inputClass} />
+            </label>
+
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700 sm:col-span-2">
+              <input type="checkbox" checked={form.isActive} onChange={(e) => updateField('isActive', e.target.checked)} />
+              Visible on storefront
+            </label>
+
+            <label className="block text-sm sm:col-span-2">
+              <span className="font-medium text-slate-700">Description</span>
+              <textarea rows={2} value={form.description} onChange={(e) => updateField('description', e.target.value)} className={inputClass} />
+            </label>
+          </div>
+        </FormStep>
+
+        <FormStep
+          step="3"
+          title="Video & image resolution"
+          hint="Set file size and price for each tier — dimensions are fixed per tier."
+          tone="violet"
+        >
+          <PricingModeSelector value={form.pricingMode} onChange={updatePricingMode} />
+
+          {isUniformPricing && (
+            <label className="mt-3 block max-w-xs text-sm">
+              <span className="font-medium text-slate-700">Price for all resolutions (₹)</span>
+              <input
+                type="number"
+                required
+                min="0"
+                value={form.price}
+                onChange={(e) => updateField('price', e.target.value)}
+                className={inputClass}
+              />
+            </label>
+          )}
+
+          <ResolutionTierEditor
+            order={RESOLUTION_ORDER}
+            tiers={form.resolutionPricing}
+            showPrice={!isUniformPricing}
+            uniformPrice={form.price}
+            onFieldChange={updateTierField}
+          />
+        </FormStep>
+
+        <FormStep
+          step="4"
+          title={isVideo ? 'Preview images + demo video' : 'Preview images'}
+          hint={isVideo ? 'Demo video shows last on product page.' : 'Customer preview images.'}
+          tone="emerald"
+        >
+          <div className="grid gap-2 sm:grid-cols-3">
+            {form.images.map((image, index) => (
+              <input
+                key={index}
+                value={image}
+                onChange={(e) => updateImage(index, e.target.value)}
+                className={inputClass}
+                placeholder={`Image URL ${index + 1}`}
+              />
+            ))}
+          </div>
+
+          {isVideo && (
+            <div className="mt-3 grid gap-3 lg:grid-cols-2">
+              <label className="block text-sm">
+                <span className="font-medium text-slate-700">Demo Video URL *</span>
+                <input required value={form.demoVideo} onChange={(e) => updateField('demoVideo', e.target.value)} className={inputClass} placeholder="https://..." />
+              </label>
+              <label className="block text-sm">
+                <span className="font-medium text-slate-700">Video Poster URL</span>
+                <input value={form.videoPoster} onChange={(e) => updateField('videoPoster', e.target.value)} className={inputClass} placeholder="Defaults to image 1" />
+              </label>
+              <div className="lg:col-span-2">
+                <p className="mb-1 text-xs font-medium text-slate-600">Preview</p>
+                <VideoPreview src={form.demoVideo} poster={form.videoPoster || form.images[0]} />
+              </div>
+            </div>
+          )}
+        </FormStep>
+
+        <FormStep
+          step="5"
+          title={isVideo ? 'Video file info' : 'Image file info'}
+          tone="amber"
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block text-sm">
+              <span className="font-medium text-slate-700">Max Quality</span>
+              <input value={form.videoInfo.quality} onChange={(e) => updateVideoInfo('quality', e.target.value)} className={inputClass} />
+            </label>
+            <label className="block text-sm">
+              <span className="font-medium text-slate-700">File Size</span>
+              <input value={form.videoInfo.size} onChange={(e) => updateVideoInfo('size', e.target.value)} className={inputClass} />
+            </label>
+            {isVideo && (
+              <>
+                <label className="block text-sm">
+                  <span className="font-medium text-slate-700">FPS</span>
+                  <input value={form.videoInfo.fps} onChange={(e) => updateVideoInfo('fps', e.target.value)} className={inputClass} />
+                </label>
+                <label className="block text-sm">
+                  <span className="font-medium text-slate-700">Duration</span>
+                  <input value={form.videoInfo.duration} onChange={(e) => updateVideoInfo('duration', e.target.value)} className={inputClass} />
+                </label>
+              </>
+            )}
+            <label className="block text-sm sm:col-span-2">
+              <span className="font-medium text-slate-700">Format</span>
+              <input value={form.videoInfo.format} onChange={(e) => updateVideoInfo('format', e.target.value)} className={inputClass} />
+            </label>
+          </div>
+        </FormStep>
+
+        <div className="flex gap-3 bg-slate-100 px-5 py-3">
+          <button type="submit" disabled={saving} className={`${primaryBtnClass} disabled:opacity-60`}>
+            {saving ? 'Saving...' : isEdit ? 'Update Product' : 'Create Product'}
+          </button>
+          <Link to="/products" className={secondaryBtnClass}>Cancel</Link>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+export default ProductForm

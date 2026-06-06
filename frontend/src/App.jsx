@@ -1,35 +1,49 @@
-import { useEffect, useState } from 'react'
-import { getHealthStatus } from './api/healthApi.js'
+import { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import Navbar from './components/Navbar';
+import Footer from './components/Footer';
+import BackToTop from './components/BackToTop';
+import Home from './pages/Home';
+import CategoryPage from './pages/CategoryPage';
+import ProductDetail from './pages/ProductDetail';
+import Cart from './pages/Cart';
+import Checkout from './pages/Checkout';
+import OrderSuccess from './pages/OrderSuccess';
 
-function App() {
-  const [apiStatus, setApiStatus] = useState('Checking backend...')
+function AppContent() {
+  const location = useLocation();
 
   useEffect(() => {
-    getHealthStatus()
-      .then((data) => setApiStatus(data.message))
-      .catch((error) => setApiStatus(error.message))
-  }, [])
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [location.pathname]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <main className="mx-auto flex min-h-screen max-w-4xl flex-col items-center justify-center px-6 text-center">
-        <p className="mb-4 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-1 text-sm font-medium text-emerald-300">
-          Ecommerce MERN Stack
-        </p>
-        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-          Frontend is ready
-        </h1>
-        <p className="mt-4 max-w-xl text-slate-400">
-          React + Vite + Tailwind CSS. Start building your ecommerce app from
-          here.
-        </p>
-        <div className="mt-8 rounded-xl border border-slate-800 bg-slate-900 px-6 py-4">
-          <p className="text-sm text-slate-400">API status</p>
-          <p className="mt-1 font-medium text-white">{apiStatus}</p>
-        </div>
+    <div className="flex min-h-screen flex-col bg-gray-50">
+      <Navbar />
+      <main className="mobile-page-bottom flex-grow">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/videos" element={<CategoryPage />} />
+          <Route path="/videos/:category/:subCategory" element={<CategoryPage />} />
+          <Route path="/videos/:category" element={<CategoryPage />} />
+          <Route path="/product/:id" element={<ProductDetail />} />
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/checkout" element={<Checkout />} />
+          <Route path="/order-success" element={<OrderSuccess />} />
+        </Routes>
       </main>
+      <Footer />
+      <BackToTop />
     </div>
-  )
+  );
 }
 
-export default App
+function App() {
+  return (
+    <Router>
+      <AppContent />
+    </Router>
+  );
+}
+
+export default App;
