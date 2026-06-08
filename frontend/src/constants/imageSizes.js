@@ -103,6 +103,21 @@ export const getDefaultImageSize = (imageSizes = {}) => {
   return available[available.length - 1]?.[0] ?? IMAGE_SIZE_ORDER[0];
 };
 
+/** Highest available tier for a product (standard order, then custom tiers). */
+export const getHighestQualityLabel = (product = {}) => {
+  const entries = sortImageSizeEntries(product.imageSizes || {});
+  if (entries.length) return entries[entries.length - 1][0];
+
+  const tiers = product.availableTiers || [];
+  if (tiers.length) {
+    const standard = IMAGE_SIZE_ORDER.filter((tier) => tiers.includes(tier));
+    if (standard.length) return standard[standard.length - 1];
+    return tiers[tiers.length - 1];
+  }
+
+  return null;
+};
+
 export const formatImageSizeList = (imageSizes = {}) =>
   sortImageSizeEntries(imageSizes)
     .map(([key]) => key)

@@ -5,6 +5,7 @@ import {
   getProductBadgeLabel,
   isVideoProduct,
 } from '../constants/mediaTypes';
+import { getHighestQualityLabel } from '../constants/imageSizes';
 import { formatCurrency } from '../utils/formatters';
 import OptimizedImage from './ui/OptimizedImage';
 import { IconPlay } from './icons/Icons';
@@ -17,7 +18,10 @@ const ProductCard = ({ product, compact = false }) => {
   const { videoRef, isPreviewActive, activatePreview, deactivatePreview } = useMediaPreview();
   const finalPrice = product.price || 0;
   const poster = product.images?.[0] || product.videoPoster;
-  const qualityLabel = product.videoInfo?.quality?.split(' ')[0] ?? '4K';
+  const qualityLabel =
+    getHighestQualityLabel(product) ??
+    product.videoInfo?.quality?.split(' ')[0] ??
+    'HD';
 
   return (
     <article
