@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { MOBILE_HERO } from '../../constants/siteContent';
 import { useCatalog } from '../../context/CatalogContext';
+import { HeroSkeleton } from '../ui/HomeSectionSkeletons';
 import { useCarousel } from '../../hooks/useCarousel';
 import { mapHeroSlides } from '../../utils/categoryContent';
 import { IconChevronLeft, IconChevronRight } from '../icons/Icons';
@@ -113,9 +114,13 @@ const FallbackHero = () => (
 );
 
 const HeroCarousel = () => {
-  const { categories } = useCatalog();
+  const { categories, loading } = useCatalog();
   const heroSlides = mapHeroSlides(categories);
   const { activeIndex, next, prev, goTo, pause, resume } = useCarousel(heroSlides.length);
+
+  if (loading) {
+    return <HeroSkeleton />;
+  }
 
   if (heroSlides.length === 0) {
     return (

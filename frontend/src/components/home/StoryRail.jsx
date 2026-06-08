@@ -1,6 +1,8 @@
 import { BRAND } from '../../config/brand';
+import { StoryRailSkeleton } from '../ui/HomeSectionSkeletons';
 
-const StoryRail = ({ stories = [], onStorySelect }) => {
+const StoryRail = ({ stories = [], onStorySelect, isLoading = false }) => {
+  if (isLoading) return <StoryRailSkeleton />;
   if (stories.length === 0) return null;
 
   return (

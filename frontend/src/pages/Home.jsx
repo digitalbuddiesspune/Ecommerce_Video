@@ -23,7 +23,7 @@ const Home = () => {
     <div className="min-h-screen bg-white font-sans text-gray-800">
       <HeroCarousel />
       <NewsTicker />
-      <StoryRail stories={stories} onStorySelect={storyViewer.open} />
+      <StoryRail stories={stories} onStorySelect={storyViewer.open} isLoading={loading} />
       <CategoryAccordion />
 
       {resultsLabel && (

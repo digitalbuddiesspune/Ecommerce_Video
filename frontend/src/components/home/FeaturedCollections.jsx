@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom';
 import { useCatalog } from '../../context/CatalogContext';
 import { mapFeaturedCollections } from '../../utils/categoryContent';
+import { FeaturedCollectionsSkeleton } from '../ui/HomeSectionSkeletons';
 
 const FeaturedCollections = () => {
-  const { categories } = useCatalog();
+  const { categories, loading } = useCatalog();
   const collections = mapFeaturedCollections(categories);
 
+  if (loading) return <FeaturedCollectionsSkeleton />;
   if (collections.length === 0) return null;
 
   return (

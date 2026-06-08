@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom';
 import { useCatalog } from '../../context/CatalogContext';
 import { mapCategoryPanels } from '../../utils/categoryContent';
+import { CategoryAccordionSkeleton } from '../ui/HomeSectionSkeletons';
 
 const CategoryAccordion = () => {
-  const { categories } = useCatalog();
+  const { categories, loading } = useCatalog();
   const panels = mapCategoryPanels(categories);
 
+  if (loading) return <CategoryAccordionSkeleton />;
   if (panels.length === 0) return null;
 
   return (

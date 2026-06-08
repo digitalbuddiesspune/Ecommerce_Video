@@ -3,11 +3,13 @@ import ProductCard from '../ProductCard';
 import { DUAL_CATEGORY_PRODUCT_GRID } from '../../constants/layout';
 import { useCatalog } from '../../context/CatalogContext';
 import { mapDualGridSections } from '../../utils/categoryContent';
+import { DualCategoryGridSkeleton } from '../ui/HomeSectionSkeletons';
 
 const DualCategoryGrid = () => {
-  const { categories, products } = useCatalog();
+  const { categories, products, loading } = useCatalog();
   const sections = mapDualGridSections(categories, products);
 
+  if (loading) return <DualCategoryGridSkeleton />;
   if (sections.length === 0) return null;
 
   return (
