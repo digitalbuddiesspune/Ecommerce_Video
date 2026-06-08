@@ -117,10 +117,7 @@ export const CatalogProvider = ({ children }) => {
       <CatalogContext.Provider value={value}>
         <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4 text-center">
           <h1 className="text-xl font-semibold text-gray-900 mb-2">Unable to load catalog</h1>
-          <p className="text-sm text-gray-600 mb-6 max-w-md">{catalog.error}</p>
-          <p className="text-xs text-gray-500 mb-6">
-            Make sure the backend is running on port 5000 and MongoDB Atlas is connected.
-          </p>
+          <p className="text-sm text-gray-600 mb-6">Network Error</p>
           <button
             type="button"
             onClick={loadCatalog}
