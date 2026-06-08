@@ -9,7 +9,9 @@ import {
 import formatProduct from '../utils/formatProduct.js'
 import { getCategoryMap } from '../utils/formatCart.js'
 
-const REQUIRED_ADDRESS_FIELDS = ['name', 'phone', 'address', 'city']
+const REQUIRED_ADDRESS_FIELDS = ['name', 'email', 'phone', 'address', 'city']
+
+const isValidEmail = (value = '') => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
 
 export const validateBillingAddress = (billingAddress = {}) => {
   const missing = REQUIRED_ADDRESS_FIELDS.filter((field) => !billingAddress[field]?.trim())
@@ -18,8 +20,14 @@ export const validateBillingAddress = (billingAddress = {}) => {
     throw new AppError('Please fill in all required billing fields', 400)
   }
 
+  const email = billingAddress.email.trim()
+  if (!isValidEmail(email)) {
+    throw new AppError('Please enter a valid email address', 400)
+  }
+
   return {
     name: billingAddress.name.trim(),
+    email,
     phone: billingAddress.phone.trim(),
     address: billingAddress.address.trim(),
     city: billingAddress.city.trim(),

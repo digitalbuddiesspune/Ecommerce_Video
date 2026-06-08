@@ -71,6 +71,11 @@ const formatProduct = (product, categoryMap = {}, options = {}) => {
       product.deliveryFiles,
       enabledTiers,
     )
+    formatted.masterVideoKey = product.masterVideoKey || ''
+    formatted.masterVideoFilename = product.masterVideoFilename || ''
+    formatted.masterVideoTier = product.masterVideoTier || ''
+    formatted.transcodeStatus = product.transcodeStatus || 'idle'
+    formatted.transcodeError = product.transcodeError || ''
   }
 
   return formatted

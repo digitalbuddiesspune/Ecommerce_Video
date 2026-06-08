@@ -1,8 +1,6 @@
-import dotenv from 'dotenv'
+import './config/loadEnv.js'
 import connectDB from '../config/db.js'
 import { reseedCatalog } from './seedCatalog.js'
-
-dotenv.config()
 
 const run = async () => {
   await connectDB()

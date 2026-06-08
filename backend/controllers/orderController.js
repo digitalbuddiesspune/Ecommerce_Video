@@ -10,6 +10,7 @@ import {
   getOrderItemDownloads,
   verifyOrderAccess,
 } from '../services/downloadService.js'
+import { queueOrderConfirmationEmail } from '../services/orderEmailService.js'
 
 export const getProfile = asyncHandler(async (req, res) => {
   const profile = await getCheckoutProfile(req.sessionId)
@@ -38,6 +39,8 @@ export const createOrder = asyncHandler(async (req, res) => {
     billingAddress,
     paymentMethod,
   })
+
+  queueOrderConfirmationEmail(order)
 
   res.status(201).json({
     success: true,

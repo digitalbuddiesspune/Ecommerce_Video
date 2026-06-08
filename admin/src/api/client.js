@@ -44,6 +44,10 @@ export const createProduct = (payload) => api.post('/products', payload)
 
 export const updateProduct = (id, payload) => api.put(`/products/${id}`, payload)
 
+export const fetchTranscodeStatus = (id) => api.get(`/products/${id}/transcode-status`)
+
+export const retriggerTranscode = (id) => api.post(`/products/${id}/retranscode`)
+
 export const deleteProduct = (id) => api.delete(`/products/${id}`)
 
 export const reseedCatalog = () => api.post('/seed')

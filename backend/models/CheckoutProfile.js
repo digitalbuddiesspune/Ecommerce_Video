@@ -3,6 +3,7 @@ import mongoose from 'mongoose'
 const billingAddressSchema = new mongoose.Schema(
   {
     name: { type: String, default: '' },
+    email: { type: String, default: '' },
     phone: { type: String, default: '' },
     address: { type: String, default: '' },
     city: { type: String, default: '' },

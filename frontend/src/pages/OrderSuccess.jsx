@@ -246,14 +246,18 @@ const OrderSuccess = () => {
                   <span className="text-xs text-gray-400 ml-auto">Just now</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-gray-300 rounded-full" />
-                  <span className="text-xs text-gray-500">Processing license</span>
-                  <span className="text-xs text-gray-400 ml-auto">Within 5 min</span>
+                  <div className="w-2 h-2 bg-green-500 rounded-full" />
+                  <span className="text-xs text-gray-600">Processing license</span>
+                  <span className="text-xs text-gray-400 ml-auto">Complete</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 bg-gray-300 rounded-full" />
-                  <span className="text-xs text-gray-500">Download ready</span>
-                  <span className="text-xs text-gray-400 ml-auto">Email sent</span>
+                  <div className="w-2 h-2 bg-green-500 rounded-full" />
+                  <span className="text-xs text-gray-600">Download ready</span>
+                  <span className="text-xs text-gray-400 ml-auto">
+                    {order?.billingAddress?.email
+                      ? `Sent to ${order.billingAddress.email}`
+                      : 'Email sent'}
+                  </span>
                 </div>
               </div>
             </div>

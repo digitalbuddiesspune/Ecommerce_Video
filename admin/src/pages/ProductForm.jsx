@@ -4,15 +4,17 @@ import {
   createProduct,
   fetchCategories,
   fetchProduct,
+  fetchTranscodeStatus,
+  retriggerTranscode,
   updateProduct,
 } from '../api/client'
 import FormStep from '../components/FormStep'
 import MediaTypeSelector from '../components/MediaTypeSelector'
-import AvailableTierSelector from '../components/AvailableTierSelector'
 import PricingModeSelector from '../components/PricingModeSelector'
 import ResolutionTierEditor from '../components/ResolutionTierEditor'
-import DeliveryTierEditor from '../components/DeliveryTierEditor'
 import MediaUpload from '../components/MediaUpload'
+import TranscodeStatusPanel from '../components/TranscodeStatusPanel'
+import MasterQualitySelector from '../components/MasterQualitySelector'
 import VideoPreview from '../components/VideoPreview'
 import {
   compactFormClass,
@@ -26,8 +28,10 @@ import {
   RESOLUTION_ORDER,
   RESOLUTION_TIERS,
   buildDefaultTierConfig,
-  isStandardTier,
   sortTierList,
+  getDeliverableCustomerTiers,
+  getCustomerTiers,
+  CUSTOMER_TIER_ORDER,
 } from '../constants/resolutionTiers'
 
 const buildEmptyDeliveryFiles = () =>
@@ -89,13 +93,6 @@ const mergeTierConfig = (product = {}) => {
   )
 }
 
-const emptyDeliveryTier = () => ({
-  videoKey: '',
-  videoFilename: '',
-  imageKeys: ['', '', ''],
-  imageFilenames: ['', '', ''],
-})
-
 const mergeAvailableTiers = (product = {}) => {
   const stored = product.availableTiers || []
   return stored.length ? sortTierList(stored) : [...RESOLUTION_ORDER]
@@ -109,7 +106,7 @@ const emptyForm = (mediaType = MEDIA_TYPES.VIDEO) => ({
   subCategorySlug: '',
   brand: '',
   price: 499,
-  availableTiers: [...RESOLUTION_ORDER],
+  availableTiers: [],
   resolutionPricing: buildDefaultTierConfig(499),
   rating: 4.5,
   description: '',
@@ -117,6 +114,11 @@ const emptyForm = (mediaType = MEDIA_TYPES.VIDEO) => ({
   demoVideo: '',
   videoPoster: '',
   deliveryFiles: buildEmptyDeliveryFiles(),
+  masterVideoKey: '',
+  masterVideoFilename: '',
+  masterVideoTier: '',
+  transcodeStatus: 'idle',
+  transcodeError: '',
   isActive: true,
   videoInfo: {
     quality: '4K UHD (3840×2160)',
@@ -137,6 +139,14 @@ const ProductForm = () => {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [retryingTranscode, setRetryingTranscode] = useState(false)
+  const [showCreateSuccess, setShowCreateSuccess] = useState(false)
+
+  useEffect(() => {
+    if (!showCreateSuccess) return undefined
+    const timer = window.setTimeout(() => setShowCreateSuccess(false), 4000)
+    return () => window.clearTimeout(timer)
+  }, [showCreateSuccess])
 
   useEffect(() => {
     const loadData = async () => {
@@ -169,6 +179,11 @@ const ProductForm = () => {
             demoVideo: product.demoVideo || '',
             videoPoster: product.videoPoster || '',
             deliveryFiles: mergeDeliveryFiles(product),
+            masterVideoKey: product.masterVideoKey || '',
+            masterVideoFilename: product.masterVideoFilename || '',
+            masterVideoTier: product.masterVideoTier || '',
+            transcodeStatus: product.transcodeStatus || 'idle',
+            transcodeError: product.transcodeError || '',
             isActive: product.isActive ?? true,
             videoInfo: {
               quality: product.videoInfo?.quality || '',
@@ -189,12 +204,42 @@ const ProductForm = () => {
     loadData()
   }, [id, isEdit])
 
+  useEffect(() => {
+    if (!isEdit || !id) return undefined
+    if (!['pending', 'processing'].includes(form.transcodeStatus)) return undefined
+
+    const pollStatus = async () => {
+      try {
+        const response = await fetchTranscodeStatus(id)
+        const data = response.data.data
+        setForm((current) => ({
+          ...current,
+          transcodeStatus: data.transcodeStatus,
+          transcodeError: data.transcodeError || '',
+          masterVideoKey: data.masterVideoKey || current.masterVideoKey,
+          masterVideoFilename: data.masterVideoFilename || current.masterVideoFilename,
+          masterVideoTier: data.masterVideoTier || current.masterVideoTier,
+          deliveryFiles: data.deliveryFiles
+            ? { ...current.deliveryFiles, ...data.deliveryFiles }
+            : current.deliveryFiles,
+        }))
+      } catch {
+        // ignore polling errors
+      }
+    }
+
+    pollStatus()
+    const intervalId = window.setInterval(pollStatus, 3000)
+    return () => window.clearInterval(intervalId)
+  }, [form.transcodeStatus, id, isEdit])
+
   const isVideo = form.mediaType === MEDIA_TYPES.VIDEO
   const isUniformPricing = form.pricingMode === PRICING_MODES.UNIFORM
-  const selectedTiers = useMemo(
-    () => sortTierList(form.availableTiers),
-    [form.availableTiers]
-  )
+
+  const derivedAvailableTiers = useMemo(() => {
+    if (!form.masterVideoTier) return getCustomerTiers(sortTierList(form.availableTiers))
+    return getDeliverableCustomerTiers(form.masterVideoTier, CUSTOMER_TIER_ORDER)
+  }, [form.masterVideoTier, form.availableTiers])
 
   const selectedCategory = useMemo(
     () => categories.find((category) => category.slug === form.categorySlug),
@@ -213,59 +258,35 @@ const ProductForm = () => {
         pricingMode === PRICING_MODES.CUSTOM
           ? mergeTierConfig({
               price: current.price,
+              availableTiers: derivedAvailableTiers.length
+                ? derivedAvailableTiers
+                : current.availableTiers,
               imageSizes: current.resolutionPricing,
+              resolutionPricing: current.resolutionPricing,
             })
           : current.resolutionPricing,
     }))
   }
 
-  const toggleAvailableTier = (tier) => {
-    setForm((current) => {
-      const isSelected = current.availableTiers.includes(tier)
-      const next = isSelected
-        ? current.availableTiers.filter((item) => item !== tier)
-        : [...current.availableTiers, tier]
+  const updateMasterTier = (masterVideoTier) => {
+    const tiers = getDeliverableCustomerTiers(masterVideoTier, CUSTOMER_TIER_ORDER)
 
-      if (next.length === 0) return current
+    setForm((current) => {
+      const nextPricing = { ...current.resolutionPricing }
+      tiers.forEach((tier) => {
+        if (!nextPricing[tier]) {
+          nextPricing[tier] = buildDefaultTierConfig(current.price)[tier]
+        }
+      })
 
       return {
         ...current,
-        availableTiers: sortTierList(next),
-      }
-    })
-  }
-
-  const addCustomTier = (name, resolution) => {
-    setForm((current) => ({
-      ...current,
-      availableTiers: sortTierList([...current.availableTiers, name]),
-      resolutionPricing: {
-        ...current.resolutionPricing,
-        [name]: {
-          resolution,
-          size: '',
-          price: current.price,
-        },
-      },
-      deliveryFiles: {
-        ...current.deliveryFiles,
-        [name]: current.deliveryFiles?.[name] || emptyDeliveryTier(),
-      },
-    }))
-  }
-
-  const removeCustomTier = (tier) => {
-    if (isStandardTier(tier)) return
-
-    setForm((current) => {
-      const { [tier]: _removedPricing, ...resolutionPricing } = current.resolutionPricing
-      const { [tier]: _removedDelivery, ...deliveryFiles } = current.deliveryFiles
-
-      return {
-        ...current,
-        availableTiers: current.availableTiers.filter((item) => item !== tier),
-        resolutionPricing,
-        deliveryFiles,
+        masterVideoTier,
+        availableTiers: tiers,
+        resolutionPricing: nextPricing,
+        transcodeStatus:
+          current.masterVideoKey && masterVideoTier ? 'pending' : current.transcodeStatus,
+        transcodeError: '',
       }
     })
   }
@@ -309,14 +330,34 @@ const ProductForm = () => {
     }))
   }
 
-  const updateDeliveryFile = (tier, data) => {
+  const updateMasterVideo = (key, meta = {}) => {
     setForm((current) => ({
       ...current,
-      deliveryFiles: {
-        ...current.deliveryFiles,
-        [tier]: data,
-      },
+      masterVideoKey: key,
+      masterVideoFilename: meta.filename || '',
+      transcodeStatus: key ? 'pending' : 'idle',
+      transcodeError: '',
     }))
+  }
+
+  const handleRetryTranscode = async () => {
+    if (!isEdit || !id) return
+
+    setRetryingTranscode(true)
+    setError('')
+
+    try {
+      await retriggerTranscode(id)
+      setForm((current) => ({
+        ...current,
+        transcodeStatus: 'pending',
+        transcodeError: '',
+      }))
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setRetryingTranscode(false)
+    }
   }
 
   const updateImage = (index, value) => {
@@ -336,33 +377,50 @@ const ProductForm = () => {
     const imageCount = form.images.filter(Boolean).length
     if (!form.name.trim()) return 'Product name is required'
     if (!form.categorySlug) return 'Category is required'
+    if (!form.masterVideoTier) {
+      return `Select the quality of the master ${isVideo ? 'video' : 'image'} in Step 3`
+    }
+    if (!form.masterVideoKey.trim()) {
+      return `Upload the master ${isVideo ? 'video' : 'image'} in Step 3`
+    }
     if (!imageCount) return 'At least one preview image is required'
     if (isVideo && !form.demoVideo.trim()) return 'Demo video URL is required for video products'
-    if (!selectedTiers.length) return 'Select at least one quality tier'
+    if (!derivedAvailableTiers.length) {
+      return 'Master quality must be Full HD or above — SD and HD are not sold to customers'
+    }
 
-    const missingSize = selectedTiers.find((tier) => {
+    const missingSize = derivedAvailableTiers.find((tier) => {
       const tierData = form.resolutionPricing?.[tier] || {}
       return !tierData.size?.trim()
     })
-    if (missingSize) return `Set file size for ${missingSize}`
+    if (missingSize) return `Set file size for ${missingSize} in Step 5`
 
-    const missingResolution = selectedTiers.find((tier) => {
-      if (isStandardTier(tier)) return false
-      const tierData = form.resolutionPricing?.[tier] || {}
-      return !tierData.resolution?.trim()
-    })
-    if (missingResolution) return `Set dimensions for custom tier ${missingResolution}`
-
-    if (form.pricingMode === PRICING_MODES.UNIFORM) {
-      if (!Number(form.price) || Number(form.price) < 0) return 'Valid price is required'
+    if (isUniformPricing) {
+      if (!Number(form.price) || Number(form.price) < 0) return 'Valid price is required in Step 5'
     } else {
-      const missingPrice = selectedTiers.find(
-        (tier) => !Number(form.resolutionPricing?.[tier]?.price)
+      const missingPrice = derivedAvailableTiers.find(
+        (tier) => !Number(form.resolutionPricing?.[tier]?.price),
       )
-      if (missingPrice) return `Enter a price for ${missingPrice}`
+      if (missingPrice) return `Enter a price for ${missingPrice} in Step 5`
     }
+
     return ''
   }
+
+  const buildImageDeliveryFiles = () =>
+    Object.fromEntries(
+      derivedAvailableTiers.map((tier) => [
+        tier,
+        {
+          videoKey: '',
+          videoFilename: '',
+          imageKeys: form.masterVideoKey?.trim() ? [form.masterVideoKey.trim()] : [],
+          imageFilenames: form.masterVideoFilename?.trim()
+            ? [form.masterVideoFilename.trim()]
+            : [],
+        },
+      ]),
+    )
 
   const handleSubmit = async (event) => {
     event.preventDefault()
@@ -377,59 +435,46 @@ const ProductForm = () => {
 
     const payload = {
       ...form,
+      pricingMode: form.pricingMode,
       images: form.images.filter(Boolean),
       price: Number(form.price),
       rating: Number(form.rating),
-      availableTiers: selectedTiers,
+      availableTiers: derivedAvailableTiers,
       resolutionPricing: Object.fromEntries(
-        selectedTiers.map((tier) => {
+        derivedAvailableTiers.map((tier) => {
           const tierData = form.resolutionPricing[tier] || {}
           return [
             tier,
             {
-              resolution: tierData.resolution?.trim() || RESOLUTION_TIERS[tier].resolution,
-              size: tierData.size?.trim() || RESOLUTION_TIERS[tier].size,
+              resolution: tierData.resolution?.trim() || RESOLUTION_TIERS[tier]?.resolution || '',
+              size: tierData.size?.trim() || RESOLUTION_TIERS[tier]?.size || '',
               price: isUniformPricing
                 ? Number(form.price)
                 : Number(tierData.price),
             },
           ]
-        })
+        }),
       ),
       videoPoster: isVideo
         ? form.videoPoster || form.images.find(Boolean) || ''
         : form.images.find(Boolean) || '',
-      deliveryFiles: Object.fromEntries(
-        selectedTiers.map((tier) => {
-          const tierData = form.deliveryFiles?.[tier] || {}
-          const imageKeys = []
-          const imageFilenames = []
-          ;(tierData.imageKeys || []).forEach((key, index) => {
-            const trimmedKey = key?.trim()
-            if (!trimmedKey) return
-            imageKeys.push(trimmedKey)
-            imageFilenames.push(tierData.imageFilenames?.[index]?.trim() || '')
-          })
-          return [
-            tier,
-            {
-              videoKey: tierData.videoKey?.trim() || '',
-              videoFilename: tierData.videoFilename?.trim() || '',
-              imageKeys,
-              imageFilenames,
-            },
-          ]
-        })
-      ),
+      masterVideoKey: form.masterVideoKey?.trim() || '',
+      masterVideoFilename: form.masterVideoFilename?.trim() || '',
+      masterVideoTier: form.masterVideoTier?.trim() || '',
+      deliveryFiles: isVideo ? {} : buildImageDeliveryFiles(),
     }
 
     try {
       if (isEdit) {
         await updateProduct(id, payload)
+        navigate('/products')
       } else {
         await createProduct(payload)
+        setForm(emptyForm(form.mediaType))
+        setError('')
+        setShowCreateSuccess(true)
+        window.scrollTo({ top: 0, behavior: 'smooth' })
       }
-      navigate('/products')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -458,6 +503,29 @@ const ProductForm = () => {
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
           {error}
+        </div>
+      )}
+
+      {showCreateSuccess && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl border border-emerald-200 bg-white p-6 text-center shadow-xl">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+              <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="text-lg font-bold text-slate-900">Product created successfully</h2>
+            <p className="mt-2 text-sm text-slate-600">
+              Form cleared — you can add another product now.
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowCreateSuccess(false)}
+              className="mt-5 w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
+            >
+              Continue
+            </button>
+          </div>
         </div>
       )}
 
@@ -539,42 +607,54 @@ const ProductForm = () => {
 
         <FormStep
           step="3"
-          title="Video & image resolution"
-          hint="Choose qualities first, then set file size and price for each selected tier."
-          tone="violet"
+          title="Master delivery file"
+          hint={
+            isVideo
+              ? 'Select master quality, then upload the original video. Lower tiers are generated automatically after save.'
+              : 'Select master quality, then upload the original image file.'
+          }
+          tone="amber"
         >
-          <AvailableTierSelector
-            selected={form.availableTiers}
-            onToggle={toggleAvailableTier}
-            onAddCustom={addCustomTier}
-            onRemoveCustom={removeCustomTier}
-          />
+          <div className="space-y-4">
+            <MasterQualitySelector
+              value={form.masterVideoTier}
+              onChange={updateMasterTier}
+              showGenerated={false}
+            />
 
-          <div className="mt-4">
-            <PricingModeSelector value={form.pricingMode} onChange={updatePricingMode} />
-          </div>
+            <MediaUpload
+              label={isVideo ? 'Master Original Video *' : 'Master Original Image *'}
+              accept={
+                isVideo
+                  ? 'video/*,.mp4,.mov,.mkv,.webm,.mxf,.prores'
+                  : 'image/*,.jpg,.jpeg,.png,.webp,.tiff,.tif,.raw,.dng'
+              }
+              uploadType={isVideo ? 'master-video' : 'master-image'}
+              value={form.masterVideoKey}
+              filename={form.masterVideoFilename}
+              onChange={updateMasterVideo}
+              valueKind="key"
+              placeholder="Or paste file key / URL"
+              disabled={!form.masterVideoTier}
+            />
 
-          {isUniformPricing && (
-            <label className="mt-3 block max-w-xs text-sm">
-              <span className="font-medium text-slate-700">Price for all resolutions (₹)</span>
-              <input
-                type="number"
-                required
-                min="0"
-                value={form.price}
-                onChange={(e) => updateField('price', e.target.value)}
-                className={inputClass}
+            {!form.masterVideoTier && (
+              <p className="text-xs text-amber-700">
+                Select master quality above before uploading the file.
+              </p>
+            )}
+
+            {isVideo && (
+              <TranscodeStatusPanel
+                status={form.transcodeStatus}
+                error={form.transcodeError}
+                selectedTiers={derivedAvailableTiers}
+                deliveryFiles={form.deliveryFiles}
+                onRetry={isEdit ? handleRetryTranscode : undefined}
+                retrying={retryingTranscode}
               />
-            </label>
-          )}
-
-          <ResolutionTierEditor
-            order={selectedTiers}
-            tiers={form.resolutionPricing}
-            showPrice={!isUniformPricing}
-            uniformPrice={form.price}
-            onFieldChange={updateTierField}
-          />
+            )}
+          </div>
         </FormStep>
 
         <FormStep
@@ -612,7 +692,7 @@ const ProductForm = () => {
               <MediaUpload
                 label="Video Poster"
                 accept="image/jpeg,image/png,image/webp"
-                uploadType="preview-image"
+                uploadType="video-poster"
                 value={form.videoPoster}
                 onChange={(url) => updateField('videoPoster', url)}
                 valueKind="url"
@@ -628,21 +708,65 @@ const ProductForm = () => {
 
         <FormStep
           step="5"
-          title="Original delivery files"
-          hint="Private files per resolution. Customers download these after purchase — not shown on storefront."
-          tone="amber"
+          title="Video & image resolution"
+          hint="Qualities are set automatically from your master upload in Step 3."
+          tone="violet"
         >
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {selectedTiers.map((tier) => (
-              <DeliveryTierEditor
-                key={tier}
-                tier={tier}
-                data={form.deliveryFiles?.[tier]}
-                isVideo={isVideo}
-                onChange={updateDeliveryFile}
+          {!form.masterVideoTier ? (
+            <p className="text-sm text-slate-500">
+              Complete Step 3 first — select master quality and upload your file.
+            </p>
+          ) : (
+            <>
+              <div className="mb-4">
+                <p className="mb-2 text-sm font-medium text-slate-700">
+                  Available qualities for customers
+                </p>
+                <p className="mb-3 text-xs text-slate-500">
+                  Master upload: <strong>{form.masterVideoTier}</strong> — Full HD and above (up to master quality) are sold to customers.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {derivedAvailableTiers.map((tier) => (
+                    <span
+                      key={tier}
+                      className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-800"
+                    >
+                      {tier}
+                      <span className="ml-1.5 font-normal text-violet-600">
+                        {RESOLUTION_TIERS[tier]?.resolution}
+                      </span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mb-4">
+                <PricingModeSelector value={form.pricingMode} onChange={updatePricingMode} />
+              </div>
+
+              {isUniformPricing && (
+                <label className="mb-4 block max-w-xs text-sm">
+                  <span className="font-medium text-slate-700">Price for all resolutions (₹)</span>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    value={form.price}
+                    onChange={(e) => updateField('price', e.target.value)}
+                    className={`${inputClass} mt-1`}
+                  />
+                </label>
+              )}
+
+              <ResolutionTierEditor
+                order={derivedAvailableTiers}
+                tiers={form.resolutionPricing}
+                showPrice={!isUniformPricing}
+                uniformPrice={form.price}
+                onFieldChange={updateTierField}
               />
-            ))}
-          </div>
+            </>
+          )}
         </FormStep>
 
         <FormStep

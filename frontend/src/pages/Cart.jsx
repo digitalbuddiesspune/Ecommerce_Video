@@ -24,11 +24,6 @@ const IconLock = (props) => (
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
   </svg>
 );
-const IconCheck = (props) => (
-  <svg {...props} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-  </svg>
-);
 const IconArrowLeft = (props) => (
   <svg {...props} fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -224,22 +219,9 @@ const Cart = () => {
               <h2 className="text-lg font-semibold text-gray-900 mb-6 pb-4 border-b border-gray-200">Order Summary</h2>
 
               <dl className="space-y-3.5 text-sm">
-                <div className="flex justify-between">
+                <div className="flex justify-between pb-4 border-b border-gray-200">
                   <dt className="text-gray-600">Subtotal</dt>
                   <dd className="font-medium text-gray-900">{formatCurrency(getCartTotal())}</dd>
-                </div>
-                <div className="flex justify-between items-center">
-                  <dt className="flex items-center text-gray-600">
-                    Delivery
-                    {remainingForFreeShip <= 0 && <IconCheck className="w-3.5 h-3.5 text-green-600 ml-1.5" />}
-                  </dt>
-                  <dd className={`font-medium ${remainingForFreeShip <= 0 ? 'text-green-600' : 'text-gray-900'}`}>
-                    {remainingForFreeShip <= 0 ? 'Free' : 'Calculated at checkout'}
-                  </dd>
-                </div>
-                <div className="flex justify-between pb-4 border-b border-gray-200">
-                  <dt className="text-gray-600">Tax Estimate</dt>
-                  <dd className="font-medium text-gray-900">₹0.00</dd>
                 </div>
 
                 <div className="flex justify-between items-center pt-3">

@@ -11,6 +11,7 @@ const MediaUpload = ({
   onChange,
   valueKind = 'url',
   placeholder = 'Or paste URL',
+  disabled = false,
 }) => {
   const inputRef = useRef(null)
   const [uploading, setUploading] = useState(false)
@@ -47,10 +48,10 @@ const MediaUpload = ({
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          disabled={uploading}
+          disabled={uploading || disabled}
           className="rounded-md border border-slate-300 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-60"
         >
-          {uploading ? 'Uploading...' : 'Upload File'}
+          {uploading ? 'Uploading...' : disabled ? 'Select quality first' : 'Upload File'}
         </button>
         {value && (
           <span className="text-[11px] font-medium text-emerald-600">
@@ -70,7 +71,8 @@ const MediaUpload = ({
       <input
         value={value || ''}
         onChange={(e) => onChange(e.target.value, { filename: '' })}
-        className={`${inputClass} mt-2`}
+        disabled={disabled}
+        className={`${inputClass} mt-2 disabled:bg-slate-100 disabled:text-slate-400`}
         placeholder={placeholder}
       />
 

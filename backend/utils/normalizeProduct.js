@@ -4,7 +4,10 @@ import {
   RESOLUTION_ORDER,
   RESOLUTION_TIERS,
   getAvailableTiers,
+  getTiersAboveMaster,
+  getTierRank,
   isStandardTier,
+  MIN_CUSTOMER_TIER,
 } from '../constants/resolutionTiers.js'
 
 const cleanImages = (images = []) =>
@@ -104,6 +107,9 @@ export const normalizeProductPayload = (body = {}) => {
   if (mediaType === MEDIA_TYPES.VIDEO) {
     payload.demoVideo = body.demoVideo?.trim() || ''
     payload.videoPoster = body.videoPoster?.trim() || images[0] || ''
+    payload.masterVideoKey = body.masterVideoKey?.trim() || ''
+    payload.masterVideoFilename = body.masterVideoFilename?.trim() || ''
+    payload.masterVideoTier = body.masterVideoTier?.trim() || ''
     payload.videoInfo = {
       quality: body.videoInfo?.quality?.trim() || '',
       fps: body.videoInfo?.fps?.trim() || '',
@@ -112,6 +118,9 @@ export const normalizeProductPayload = (body = {}) => {
       format: body.videoInfo?.format?.trim() || '',
     }
   } else {
+    payload.masterVideoKey = body.masterVideoKey?.trim() || ''
+    payload.masterVideoFilename = body.masterVideoFilename?.trim() || ''
+    payload.masterVideoTier = body.masterVideoTier?.trim() || ''
     payload.demoVideo = ''
     payload.videoPoster = images[0] || ''
     payload.videoInfo = {
@@ -135,7 +144,9 @@ export const validateProductPayload = (payload) => {
   const enabledTiers = getAvailableTiers(payload)
 
   if (!enabledTiers.length) {
-    errors.push('Select at least one quality tier')
+    errors.push(
+      `Select master quality ${MIN_CUSTOMER_TIER} or above — SD and HD are not sold to customers`,
+    )
   }
 
   enabledTiers.forEach((tier) => {
@@ -167,6 +178,43 @@ export const validateProductPayload = (payload) => {
   if (payload.mediaType === MEDIA_TYPES.VIDEO) {
     if (!payload.demoVideo) errors.push('Demo video URL is required for video products')
     if (!payload.videoPoster) errors.push('Video poster is required for video products')
+  }
+
+  const hasMaster = Boolean(payload.masterVideoKey)
+  const hasTierDelivery = [...payload.deliveryFiles.values()].some(
+    (tier) => tier.videoKey?.trim() || tier.imageKeys?.some((key) => key?.trim()),
+  )
+
+  if (payload.mediaType === MEDIA_TYPES.VIDEO || payload.mediaType === MEDIA_TYPES.IMAGE) {
+    if (!hasMaster && !hasTierDelivery) {
+      errors.push(
+        payload.mediaType === MEDIA_TYPES.VIDEO
+          ? 'Master delivery video is required'
+          : 'Master delivery image is required',
+      )
+    }
+
+    if (hasMaster && !payload.masterVideoTier) {
+      errors.push('Select the quality of the master delivery file')
+    }
+
+    if (
+      hasMaster &&
+      payload.masterVideoTier &&
+      getTierRank(payload.masterVideoTier) < getTierRank(MIN_CUSTOMER_TIER)
+    ) {
+      errors.push(`Master quality must be ${MIN_CUSTOMER_TIER} or above`)
+    }
+
+    const aboveMaster = getTiersAboveMaster(
+      payload.masterVideoTier,
+      getAvailableTiers(payload),
+    )
+    if (hasMaster && payload.masterVideoTier && aboveMaster.length) {
+      errors.push(
+        `Cannot sell ${aboveMaster.join(', ')} — master file is only ${payload.masterVideoTier}.`,
+      )
+    }
   }
 
   if (errors.length) {

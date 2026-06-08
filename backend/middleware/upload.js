@@ -6,7 +6,10 @@ const imageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 const videoTypes = ['video/mp4', 'video/webm', 'video/quicktime']
 
 const isDeliveryUpload = (type) =>
-  type === 'delivery-image' || type === 'delivery-video'
+  type === 'delivery-image' ||
+  type === 'delivery-video' ||
+  type === 'master-video' ||
+  type === 'master-image'
 
 export const uploadSingle = multer({
   storage,
@@ -20,7 +23,7 @@ export const uploadSingle = multer({
       return
     }
 
-    if (type.startsWith('preview-image') || type === 'preview-image') {
+    if (type.startsWith('preview-image') || type === 'preview-image' || type === 'video-poster') {
       if (!imageTypes.includes(file.mimetype)) {
         cb(new Error('Only JPEG, PNG, WebP, or GIF images are allowed'))
         return

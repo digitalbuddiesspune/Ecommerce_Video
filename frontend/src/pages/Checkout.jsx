@@ -8,6 +8,7 @@ import { BRAND } from '../config/brand';
 
 const emptyAddress = {
   name: '',
+  email: '',
   phone: '',
   address: '',
   city: '',
@@ -70,7 +71,13 @@ const Checkout = () => {
   };
 
   const saveAddress = async () => {
-    if (!shippingAddress.name || !shippingAddress.phone || !shippingAddress.address || !shippingAddress.city) {
+    if (
+      !shippingAddress.name ||
+      !shippingAddress.email ||
+      !shippingAddress.phone ||
+      !shippingAddress.address ||
+      !shippingAddress.city
+    ) {
       setError('Please fill in all required fields before saving');
       return;
     }
@@ -90,7 +97,13 @@ const Checkout = () => {
   };
 
   const handlePayment = async () => {
-    if (!shippingAddress.name || !shippingAddress.phone || !shippingAddress.address || !shippingAddress.city) {
+    if (
+      !shippingAddress.name ||
+      !shippingAddress.email ||
+      !shippingAddress.phone ||
+      !shippingAddress.address ||
+      !shippingAddress.city
+    ) {
       setError('Please fill in all required billing fields');
       return;
     }
@@ -109,6 +122,7 @@ const Checkout = () => {
       setProcessingStep(3);
       await new Promise((resolve) => setTimeout(resolve, 800));
       setProcessingStep(4);
+      await new Promise((resolve) => setTimeout(resolve, 600));
 
       const response = await orderAPI.createOrder(shippingAddress, paymentMethod);
 
@@ -119,6 +133,8 @@ const Checkout = () => {
       const orderId = response.data.order.id;
       setProcessingStep(5);
       await new Promise((resolve) => setTimeout(resolve, 600));
+      setProcessingStep(6);
+      await new Promise((resolve) => setTimeout(resolve, 400));
 
       setIsProcessingOrder(false);
       setLoading(false);
@@ -218,6 +234,7 @@ const Checkout = () => {
                     'Processing payment method',
                     'Confirming license',
                     'Creating order',
+                    'Sending download email',
                     'Order confirmed',
                   ].map((label, index) => {
                     const step = index + 1;
@@ -283,6 +300,23 @@ const Checkout = () => {
                     className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-gray-900 focus:border-gray-900 transition-colors"
                     placeholder="Enter your full name"
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Email Address <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={shippingAddress.email}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-gray-900 focus:border-gray-900 transition-colors"
+                    placeholder="you@example.com"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    Download links for your purchased resolution will be sent here.
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">

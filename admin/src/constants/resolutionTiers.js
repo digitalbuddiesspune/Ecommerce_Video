@@ -19,6 +19,36 @@ export const sortTierList = (tiers = []) => {
   return [...standard, ...custom]
 }
 
+export const getTierRank = (tier) => {
+  const index = RESOLUTION_ORDER.indexOf(tier)
+  return index === -1 ? RESOLUTION_ORDER.length : index
+}
+
+export const getTiersUpToMaster = (masterTier, tiers = []) => {
+  if (!masterTier) return sortTierList(tiers)
+  const masterRank = getTierRank(masterTier)
+  return sortTierList(tiers).filter((tier) => getTierRank(tier) <= masterRank)
+}
+
+export const getTiersAboveMaster = (masterTier, tiers = []) => {
+  if (!masterTier) return []
+  const masterRank = getTierRank(masterTier)
+  return sortTierList(tiers).filter((tier) => getTierRank(tier) > masterRank)
+}
+
+/** Lowest tier offered to customers (SD/HD are excluded) */
+export const MIN_CUSTOMER_TIER = 'Full HD'
+
+export const CUSTOMER_TIER_ORDER = RESOLUTION_ORDER.filter(
+  (tier) => getTierRank(tier) >= getTierRank(MIN_CUSTOMER_TIER),
+)
+
+export const getCustomerTiers = (tiers = []) =>
+  sortTierList(tiers).filter((tier) => getTierRank(tier) >= getTierRank(MIN_CUSTOMER_TIER))
+
+export const getDeliverableCustomerTiers = (masterTier, tiers = CUSTOMER_TIER_ORDER) =>
+  getCustomerTiers(getTiersUpToMaster(masterTier, tiers))
+
 export const buildDefaultTierConfig = (basePrice = 499) =>
   Object.fromEntries(
     RESOLUTION_ORDER.map((tier, index) => {

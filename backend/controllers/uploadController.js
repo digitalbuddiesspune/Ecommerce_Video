@@ -2,12 +2,24 @@ import asyncHandler from '../utils/asyncHandler.js'
 import { uploadPrivateFile, uploadPublicFile } from '../services/storageService.js'
 
 const folderForType = (type) => {
-  if (type === 'preview-image') return 'previews/images'
-  if (type === 'preview-video') return 'previews/videos'
+  if (type === 'master-video') return 'delivery/master-videos'
+  if (type === 'master-image') return 'delivery/master-images'
+  if (type === 'preview-image') return 'storefront/preview-images'
+  if (type === 'video-poster') return 'storefront/video-posters'
+  if (type === 'preview-video') return 'storefront/demo-videos'
   if (type === 'delivery-image') return 'delivery/images'
-  if (type === 'delivery-video') return 'delivery/videos'
+  if (type === 'delivery-video') return 'delivery/videos/legacy'
   return 'misc'
 }
+
+const isPrivateUpload = (type) =>
+  type === 'delivery-image' ||
+  type === 'delivery-video' ||
+  type === 'master-video' ||
+  type === 'master-image'
+
+const isPublicUpload = (type) =>
+  type === 'preview-image' || type === 'preview-video' || type === 'video-poster'
 
 export const uploadMedia = asyncHandler(async (req, res) => {
   if (!req.file) {
@@ -18,7 +30,7 @@ export const uploadMedia = asyncHandler(async (req, res) => {
   const type = req.body.type || ''
   const folder = folderForType(type)
 
-  if (type === 'delivery-image' || type === 'delivery-video') {
+  if (isPrivateUpload(type)) {
     const result = await uploadPrivateFile(req.file, folder)
     res.json({
       key: result.key,
@@ -29,7 +41,7 @@ export const uploadMedia = asyncHandler(async (req, res) => {
     return
   }
 
-  if (type === 'preview-image' || type === 'preview-video') {
+  if (isPublicUpload(type)) {
     const result = await uploadPublicFile(req.file, folder)
     res.json({ url: result.url, key: result.key, type })
     return

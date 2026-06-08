@@ -10,6 +10,25 @@ export const IMAGE_SIZE_TIERS = {
 
 export const IMAGE_SIZE_ORDER = Object.keys(IMAGE_SIZE_TIERS);
 
+export const MIN_CUSTOMER_TIER = 'Full HD';
+
+const getTierRank = (tier) => {
+  const index = IMAGE_SIZE_ORDER.indexOf(tier);
+  return index === -1 ? IMAGE_SIZE_ORDER.length : index;
+};
+
+export const getCustomerTiers = (tiers = []) =>
+  tiers.filter((tier) => getTierRank(tier) >= getTierRank(MIN_CUSTOMER_TIER));
+
+const filterCustomerSizes = (imageSizes = {}, product = {}) => {
+  const tiers = product?.availableTiers?.length
+    ? product.availableTiers
+    : getCustomerTiers(Object.keys(imageSizes));
+  return Object.fromEntries(
+    Object.entries(imageSizes).filter(([tier]) => tiers.includes(tier)),
+  );
+};
+
 export const buildScaledImageSizes = (base4kPrice) =>
   Object.fromEntries(
     IMAGE_SIZE_ORDER.map((key) => {
@@ -42,11 +61,12 @@ export const buildUniformImageSizes = (uniformPrice) =>
 
 export const resolveProductImageSizes = (product) => {
   if (product?.imageSizes && Object.keys(product.imageSizes).length) {
-    return product.imageSizes;
+    return filterCustomerSizes(product.imageSizes, product);
   }
 
   if (product?.pricingMode === 'custom' && product?.resolutionPricing) {
-    return Object.fromEntries(
+    return filterCustomerSizes(
+      Object.fromEntries(
       IMAGE_SIZE_ORDER.map((key) => {
         const stored = product.resolutionPricing[key] || {};
         const tier = IMAGE_SIZE_TIERS[key];
@@ -59,12 +79,15 @@ export const resolveProductImageSizes = (product) => {
           },
         ];
       })
+    ),
+      product,
     );
   }
 
   if (product?.pricingMode === 'uniform') {
     const storedTiers = product?.resolutionPricing || {};
-    return Object.fromEntries(
+    return filterCustomerSizes(
+      Object.fromEntries(
       IMAGE_SIZE_ORDER.map((key) => {
         const stored = storedTiers[key] || {};
         const tier = IMAGE_SIZE_TIERS[key];
@@ -77,10 +100,12 @@ export const resolveProductImageSizes = (product) => {
           },
         ];
       })
+    ),
+      product,
     );
   }
 
-  return buildScaledImageSizes(product?.price ?? 0);
+  return filterCustomerSizes(buildScaledImageSizes(product?.price ?? 0), product);
 };
 
 /** @deprecated alias */
@@ -100,7 +125,7 @@ export const sortImageSizeEntries = (imageSizes = {}) => {
 export const getDefaultImageSize = (imageSizes = {}) => {
   if (imageSizes['4K']) return '4K';
   const available = sortImageSizeEntries(imageSizes);
-  return available[available.length - 1]?.[0] ?? IMAGE_SIZE_ORDER[0];
+  return available[available.length - 1]?.[0] ?? MIN_CUSTOMER_TIER;
 };
 
 /** Highest available tier for a product (standard order, then custom tiers). */
