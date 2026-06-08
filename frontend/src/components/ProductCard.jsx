@@ -1,6 +1,5 @@
 import { memo } from 'react';
 import { Link } from 'react-router-dom';
-import { useMediaPreview } from '../hooks/useMediaPreview';
 import {
   getProductBadgeLabel,
   isVideoProduct,
@@ -15,7 +14,6 @@ const THUMB_HEIGHT = { compact: 500, default: 650 };
 
 const ProductCard = ({ product, compact = false }) => {
   const isVideo = isVideoProduct(product);
-  const { videoRef, isPreviewActive, activatePreview, deactivatePreview } = useMediaPreview();
   const finalPrice = product.price || 0;
   const poster = product.images?.[0] || product.videoPoster;
   const qualityLabel =
@@ -24,11 +22,7 @@ const ProductCard = ({ product, compact = false }) => {
     'HD';
 
   return (
-    <article
-      className="group relative w-full min-w-0 translate-z-0 transform-gpu select-none [content-visibility:auto] [contain-intrinsic-size:auto_320px]"
-      onMouseEnter={isVideo ? activatePreview : undefined}
-      onMouseLeave={isVideo ? deactivatePreview : undefined}
-    >
+    <article className="group relative w-full min-w-0 translate-z-0 transform-gpu select-none [content-visibility:auto] [contain-intrinsic-size:auto_320px]">
       <Link to={`/product/${product.id}`} className="block">
         <div className="relative aspect-[4/5] w-full overflow-hidden rounded-xl bg-gray-100 shadow-sm">
           <span className={`absolute left-2 top-2 z-20 rounded-md bg-black/80 font-bold uppercase tracking-wide text-white ${compact ? 'px-1.5 py-0.5 text-[9px]' : 'left-3 top-3 px-2 py-1 text-[10px]'}`}>
@@ -47,25 +41,8 @@ const ProductCard = ({ product, compact = false }) => {
             height={THUMB_HEIGHT[compact ? 'compact' : 'default']}
             quality={75}
             loading="lazy"
-            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${
-              isVideo && isPreviewActive ? 'opacity-0' : 'opacity-100'
-            }`}
+            className="absolute inset-0 h-full w-full object-cover"
           />
-
-          {isVideo && product.demoVideo && (
-            <video
-              ref={videoRef}
-              src={product.demoVideo}
-              poster={poster}
-              muted
-              loop
-              playsInline
-              preload="none"
-              className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${
-                isPreviewActive ? 'z-10 opacity-100' : 'z-0 opacity-0'
-              }`}
-            />
-          )}
 
           {isVideo && (
             <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
