@@ -10,6 +10,15 @@ export const RESOLUTION_TIERS = {
 
 export const RESOLUTION_ORDER = Object.keys(RESOLUTION_TIERS)
 
+export const isStandardTier = (tier) => RESOLUTION_ORDER.includes(tier)
+
+export const sortTierList = (tiers = []) => {
+  const unique = [...new Set(tiers.map((tier) => tier?.trim()).filter(Boolean))]
+  const standard = RESOLUTION_ORDER.filter((tier) => unique.includes(tier))
+  const custom = unique.filter((tier) => !isStandardTier(tier))
+  return [...standard, ...custom]
+}
+
 export const buildDefaultTierConfig = (basePrice = 499) =>
   Object.fromEntries(
     RESOLUTION_ORDER.map((tier, index) => {

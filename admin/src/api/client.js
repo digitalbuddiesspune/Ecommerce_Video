@@ -28,7 +28,17 @@ export const deleteCategory = (id) => api.delete(`/categories/${id}`)
 export const fetchProducts = (admin = true) =>
   api.get('/products', { params: { admin: admin ? 'true' : 'false' } })
 
-export const fetchProduct = (id) => api.get(`/products/${id}`)
+export const fetchProduct = (id) =>
+  api.get(`/products/${id}`, { params: { admin: 'true' } })
+
+export const uploadMedia = (file, type) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  formData.append('type', type)
+  return api.post('/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+}
 
 export const createProduct = (payload) => api.post('/products', payload)
 

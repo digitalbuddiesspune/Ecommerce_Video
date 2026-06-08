@@ -6,6 +6,10 @@ import {
   getOrderById,
   saveCheckoutProfile,
 } from '../services/orderService.js'
+import {
+  getOrderItemDownloads,
+  verifyOrderAccess,
+} from '../services/downloadService.js'
 
 export const getProfile = asyncHandler(async (req, res) => {
   const profile = await getCheckoutProfile(req.sessionId)
@@ -52,5 +56,16 @@ export const getOrder = asyncHandler(async (req, res) => {
     data: {
       order: formatOrderResponse(order),
     },
+  })
+})
+
+export const getOrderDownloads = asyncHandler(async (req, res) => {
+  const order = await getOrderById(req.sessionId, req.params.id)
+  verifyOrderAccess(order, req.sessionId)
+  const downloads = await getOrderItemDownloads(order)
+
+  res.json({
+    success: true,
+    data: { downloads },
   })
 })

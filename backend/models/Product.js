@@ -1,12 +1,23 @@
 import mongoose from 'mongoose'
 import { MEDIA_TYPE_LIST, MEDIA_TYPES } from '../constants/mediaTypes.js'
 import { PRICING_MODE_LIST, PRICING_MODES } from '../constants/pricingModes.js'
+import { RESOLUTION_ORDER } from '../constants/resolutionTiers.js'
 
 const resolutionTierSchema = new mongoose.Schema(
   {
     price: { type: Number, min: 0 },
     resolution: { type: String, default: '' },
     size: { type: String, default: '' },
+  },
+  { _id: false },
+)
+
+const deliveryTierSchema = new mongoose.Schema(
+  {
+    videoKey: { type: String, default: '' },
+    videoFilename: { type: String, default: '' },
+    imageKeys: { type: [String], default: [] },
+    imageFilenames: { type: [String], default: [] },
   },
   { _id: false },
 )
@@ -40,6 +51,7 @@ const productSchema = new mongoose.Schema(
       default: PRICING_MODES.UNIFORM,
     },
     price: { type: Number, required: true, min: 0 },
+    availableTiers: { type: [String], default: () => [...RESOLUTION_ORDER] },
     resolutionPricing: {
       type: Map,
       of: resolutionTierSchema,
@@ -50,6 +62,11 @@ const productSchema = new mongoose.Schema(
     images: { type: [String], default: [] },
     demoVideo: { type: String, default: '' },
     videoPoster: { type: String, default: '' },
+    deliveryFiles: {
+      type: Map,
+      of: deliveryTierSchema,
+      default: () => new Map(),
+    },
     videoInfo: { type: videoInfoSchema, default: () => ({}) },
     isActive: { type: Boolean, default: true },
   },

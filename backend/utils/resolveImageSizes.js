@@ -1,5 +1,9 @@
 import { PRICING_MODES } from '../constants/pricingModes.js'
-import { RESOLUTION_ORDER, RESOLUTION_TIERS } from '../constants/resolutionTiers.js'
+import {
+  RESOLUTION_ORDER,
+  RESOLUTION_TIERS,
+  getAvailableTiers,
+} from '../constants/resolutionTiers.js'
 
 const readMapValue = (resolutionPricing, key) => {
   if (!resolutionPricing) return null
@@ -71,15 +75,23 @@ export const resolveImageSizes = (product) => {
   const pricingMode = product.pricingMode || PRICING_MODES.UNIFORM
   const basePrice = Number(product.price) || 0
   const resolutionPricing = product.resolutionPricing
+  const enabledTiers = getAvailableTiers(product)
 
-  if (pricingMode === PRICING_MODES.CUSTOM) {
-    return buildCustomImageSizes(resolutionPricing, basePrice)
-  }
+  const allSizes =
+    pricingMode === PRICING_MODES.CUSTOM
+      ? buildCustomImageSizes(resolutionPricing, basePrice)
+      : buildUniformImageSizes(basePrice, resolutionPricing)
 
-  return buildUniformImageSizes(basePrice, resolutionPricing)
+  return Object.fromEntries(
+    Object.entries(allSizes).filter(([tier]) => enabledTiers.includes(tier)),
+  )
 }
 
 export const getListingPrice = (product) => {
   const imageSizes = resolveImageSizes(product)
-  return Number(imageSizes['4K']?.price ?? product.price ?? 0)
+  const enabledTiers = getAvailableTiers(product)
+  const preferredTier = enabledTiers.includes('4K')
+    ? '4K'
+    : enabledTiers[enabledTiers.length - 1]
+  return Number(imageSizes[preferredTier]?.price ?? product.price ?? 0)
 }

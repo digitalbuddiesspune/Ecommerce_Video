@@ -2,6 +2,7 @@ import { Router } from 'express'
 import {
   createOrder,
   getOrder,
+  getOrderDownloads,
   getProfile,
   updateProfile,
 } from '../controllers/orderController.js'
@@ -14,6 +15,7 @@ router.use(cartSession)
 router.get('/profile', getProfile)
 router.put('/profile', updateProfile)
 router.post('/', createOrder)
+router.get('/:id/downloads', getOrderDownloads)
 router.get('/:id', getOrder)
 
 export default router

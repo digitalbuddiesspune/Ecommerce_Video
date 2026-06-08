@@ -9,7 +9,9 @@ const OrderSuccess = () => {
   const [countdown, setCountdown] = useState(10);
   const [isVisible, setIsVisible] = useState(false);
   const [order, setOrder] = useState(null);
+  const [downloads, setDownloads] = useState([]);
   const [loadingOrder, setLoadingOrder] = useState(true);
+  const [loadingDownloads, setLoadingDownloads] = useState(false);
 
   const paymentMethod = searchParams.get('method') || order?.paymentMethod || 'online';
   const orderId = searchParams.get('orderId') || '';
@@ -40,6 +42,26 @@ const OrderSuccess = () => {
     };
 
     fetchOrder();
+  }, [orderId]);
+
+  useEffect(() => {
+    if (!orderId) return;
+
+    const fetchDownloads = async () => {
+      setLoadingDownloads(true);
+      try {
+        const response = await orderAPI.getOrderDownloads(orderId);
+        if (response.success) {
+          setDownloads(response.data.downloads || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch downloads:', error);
+      } finally {
+        setLoadingDownloads(false);
+      }
+    };
+
+    fetchDownloads();
   }, [orderId]);
 
   useEffect(() => {
@@ -111,8 +133,45 @@ const OrderSuccess = () => {
         </div>
 
         <p className="text-gray-600 mb-6 text-lg">
-          Your license order has been confirmed. Download links will be sent to your email shortly.
+          Your license order has been confirmed. Download your files below.
         </p>
+
+        {(loadingDownloads || downloads.length > 0) && (
+          <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4 text-left">
+            <p className="mb-3 text-sm font-semibold text-gray-900">Your Downloads</p>
+            {loadingDownloads ? (
+              <p className="text-sm text-gray-500">Preparing download links...</p>
+            ) : (
+              <div className="space-y-4">
+                {downloads.map((item) => (
+                  <div key={`${item.productId}-${item.imageSize}`} className="rounded-md border border-gray-200 bg-white p-3">
+                    <p className="text-sm font-semibold text-gray-900">{item.name}</p>
+                    <p className="mb-2 text-xs text-gray-500">{item.imageSize} resolution</p>
+                    {item.files?.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {item.files.map((file) => (
+                          <a
+                            key={`${file.type}-${file.label}`}
+                            href={file.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center rounded-full bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-800"
+                          >
+                            Download {file.label}
+                          </a>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-amber-600">
+                        {item.message || 'Files not available yet.'}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">

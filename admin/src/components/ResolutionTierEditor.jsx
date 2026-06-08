@@ -1,3 +1,5 @@
+import { RESOLUTION_ORDER } from '../constants/resolutionTiers'
+
 const tierInputClass =
   'mt-0.5 w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-sm outline-none focus:border-slate-900 focus:ring-1 focus:ring-slate-900/10'
 
@@ -17,7 +19,26 @@ const ResolutionTierEditor = ({
           key={tier}
           className="rounded-lg border border-violet-200/80 bg-white/90 p-3 text-sm shadow-sm"
         >
-          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-900">{tier}</p>
+          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-900">
+            {tier}
+            {!RESOLUTION_ORDER.includes(tier) && (
+              <span className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-semibold normal-case text-amber-800">
+                custom
+              </span>
+            )}
+          </p>
+
+          {!RESOLUTION_ORDER.includes(tier) && (
+            <label className="mb-2 block text-xs">
+              <span className="font-medium text-slate-600">Dimensions</span>
+              <input
+                value={tierData.resolution ?? ''}
+                onChange={(e) => onFieldChange(tier, 'resolution', e.target.value)}
+                className={tierInputClass}
+                placeholder="5120×2880"
+              />
+            </label>
+          )}
 
           <label className="mb-2 block text-xs">
             <span className="font-medium text-slate-600">File size</span>

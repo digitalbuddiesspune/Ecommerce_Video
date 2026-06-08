@@ -49,4 +49,9 @@ export const orderAPI = {
     const { data } = await api.get(`/orders/${orderId}`)
     return data
   },
+
+  getOrderDownloads: async (orderId) => {
+    const { data } = await api.get(`/orders/${orderId}/downloads`)
+    return data
+  },
 }

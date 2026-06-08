@@ -2,10 +2,15 @@ import express from 'express'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import dotenv from 'dotenv'
+import path from 'path'
+import { fileURLToPath } from 'url'
 import connectDB from './config/db.js'
+import { LOCAL_PUBLIC_DIR } from './config/storage.js'
 import apiRoutes from './routes/index.js'
 import errorHandler from './middleware/errorHandler.js'
 import seedCatalogIfEmpty from './seed/seedCatalog.js'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 dotenv.config()
 
@@ -37,6 +42,7 @@ app.use(
 app.use(cookieParser())
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
+app.use('/uploads/public', express.static(LOCAL_PUBLIC_DIR))
 
 app.use('/api', apiRoutes)
 

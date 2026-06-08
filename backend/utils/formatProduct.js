@@ -1,20 +1,52 @@
 import { PRICING_MODES } from '../constants/pricingModes.js'
+import { getAvailableTiers, sortTierList } from '../constants/resolutionTiers.js'
 import {
   getListingPrice,
   resolveImageSizes,
   serializeResolutionPricing,
 } from './resolveImageSizes.js'
 
-const formatProduct = (product, categoryMap = {}) => {
+export const serializeDeliveryFiles = (deliveryFiles, availableTiers = []) => {
+  const source =
+    deliveryFiles instanceof Map
+      ? Object.fromEntries(deliveryFiles.entries())
+      : deliveryFiles || {}
+
+  const tiers = availableTiers.length
+    ? sortTierList(availableTiers)
+    : sortTierList(Object.keys(source))
+
+  return Object.fromEntries(
+    tiers.map((tier) => {
+      const tierData = source[tier] || {}
+      return [
+        tier,
+        {
+          videoKey: tierData.videoKey || '',
+          videoFilename: tierData.videoFilename || '',
+          imageKeys: tierData.imageKeys || [],
+          imageFilenames: tierData.imageFilenames || [],
+        },
+      ]
+    }),
+  )
+}
+
+const formatProduct = (product, categoryMap = {}, options = {}) => {
   const category = categoryMap[product.categorySlug]
   const pricingMode = product.pricingMode || PRICING_MODES.UNIFORM
   const imageSizes = resolveImageSizes(product)
 
-  return {
+  const enabledTiers = getAvailableTiers(product)
+  const allPricing = serializeResolutionPricing(product.resolutionPricing)
+
+  const formatted = {
     id: product._id.toString(),
     mediaType: product.mediaType || 'video',
     pricingMode,
-    resolutionPricing: serializeResolutionPricing(product.resolutionPricing),
+    resolutionPricing: Object.fromEntries(
+      Object.entries(allPricing).filter(([tier]) => enabledTiers.includes(tier)),
+    ),
     imageSizes,
     name: product.name,
     category: category?.breadcrumb || product.categorySlug,
@@ -22,6 +54,7 @@ const formatProduct = (product, categoryMap = {}) => {
     subCategory: product.subCategorySlug,
     brand: product.brand,
     price: getListingPrice(product),
+    availableTiers: enabledTiers,
     rating: product.rating,
     description: product.description,
     images: product.images,
@@ -32,6 +65,15 @@ const formatProduct = (product, categoryMap = {}) => {
     createdAt: product.createdAt,
     updatedAt: product.updatedAt,
   }
+
+  if (options.includeDelivery) {
+    formatted.deliveryFiles = serializeDeliveryFiles(
+      product.deliveryFiles,
+      enabledTiers,
+    )
+  }
+
+  return formatted
 }
 
 export const buildCategoryMap = (categories) =>

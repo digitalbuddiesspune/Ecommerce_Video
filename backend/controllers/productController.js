@@ -26,7 +26,12 @@ export const getProducts = asyncHandler(async (req, res) => {
   const products = await Product.find(filter).sort({ createdAt: -1 })
   const categoryMap = await getCategoryMap()
 
-  res.json(products.map((product) => formatProduct(product, categoryMap)))
+  const includeDelivery = req.query.admin === 'true'
+  res.json(
+    products.map((product) =>
+      formatProduct(product, categoryMap, { includeDelivery }),
+    ),
+  )
 })
 
 export const getProductById = asyncHandler(async (req, res) => {
@@ -37,7 +42,8 @@ export const getProductById = asyncHandler(async (req, res) => {
   }
 
   const categoryMap = await getCategoryMap()
-  res.json(formatProduct(product, categoryMap))
+  const includeDelivery = req.query.admin === 'true'
+  res.json(formatProduct(product, categoryMap, { includeDelivery }))
 })
 
 export const createProduct = asyncHandler(async (req, res) => {
@@ -50,7 +56,7 @@ export const createProduct = asyncHandler(async (req, res) => {
   const payload = validateProductPayload(normalizeProductPayload(req.body))
   const product = await Product.create(payload)
   const categoryMap = await getCategoryMap()
-  res.status(201).json(formatProduct(product, categoryMap))
+  res.status(201).json(formatProduct(product, categoryMap, { includeDelivery: true }))
 })
 
 export const updateProduct = asyncHandler(async (req, res) => {
@@ -74,7 +80,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
   }
 
   const categoryMap = await getCategoryMap()
-  res.json(formatProduct(product, categoryMap))
+  res.json(formatProduct(product, categoryMap, { includeDelivery: true }))
 })
 
 export const deleteProduct = asyncHandler(async (req, res) => {

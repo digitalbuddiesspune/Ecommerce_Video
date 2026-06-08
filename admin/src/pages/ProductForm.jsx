@@ -8,8 +8,11 @@ import {
 } from '../api/client'
 import FormStep from '../components/FormStep'
 import MediaTypeSelector from '../components/MediaTypeSelector'
+import AvailableTierSelector from '../components/AvailableTierSelector'
 import PricingModeSelector from '../components/PricingModeSelector'
 import ResolutionTierEditor from '../components/ResolutionTierEditor'
+import DeliveryTierEditor from '../components/DeliveryTierEditor'
+import MediaUpload from '../components/MediaUpload'
 import VideoPreview from '../components/VideoPreview'
 import {
   compactFormClass,
@@ -23,28 +26,79 @@ import {
   RESOLUTION_ORDER,
   RESOLUTION_TIERS,
   buildDefaultTierConfig,
+  isStandardTier,
+  sortTierList,
 } from '../constants/resolutionTiers'
+
+const buildEmptyDeliveryFiles = () =>
+  Object.fromEntries(
+    RESOLUTION_ORDER.map((tier) => [
+      tier,
+      {
+        videoKey: '',
+        videoFilename: '',
+        imageKeys: ['', '', ''],
+        imageFilenames: ['', '', ''],
+      },
+    ])
+  )
+
+const mergeDeliveryFiles = (product = {}) => {
+  const source = product.deliveryFiles || {}
+  return Object.fromEntries(
+    RESOLUTION_ORDER.map((tier) => {
+      const stored = source[tier] || {}
+      const imageKeys = [...(stored.imageKeys || [])]
+      const imageFilenames = [...(stored.imageFilenames || [])]
+      while (imageKeys.length < 3) imageKeys.push('')
+      while (imageFilenames.length < 3) imageFilenames.push('')
+      return [
+        tier,
+        {
+          videoKey: stored.videoKey || '',
+          videoFilename: stored.videoFilename || '',
+          imageKeys,
+          imageFilenames,
+        },
+      ]
+    })
+  )
+}
 
 const mergeTierConfig = (product = {}) => {
   const source = product.imageSizes || product.resolutionPricing
   const basePrice = Number(product.price) || 499
 
+  const tierList = mergeAvailableTiers(product)
+
   return Object.fromEntries(
-    RESOLUTION_ORDER.map((tier) => {
+    tierList.map((tier) => {
       const stored = source?.[tier] || {}
-      const defaults = RESOLUTION_TIERS[tier]
+      const defaults = RESOLUTION_TIERS[tier] || {}
       const scaled = buildDefaultTierConfig(basePrice)[tier]
 
       return [
         tier,
         {
-          resolution: stored.resolution || defaults.resolution,
-          size: stored.size || defaults.size,
-          price: stored.price ?? scaled.price,
+          resolution: stored.resolution || defaults.resolution || '',
+          size: stored.size || defaults.size || '',
+          price: stored.price ?? scaled?.price ?? basePrice,
         },
       ]
     })
   )
+}
+
+const emptyDeliveryTier = () => ({
+  videoKey: '',
+  videoFilename: '',
+  imageKeys: ['', '', ''],
+  imageFilenames: ['', '', ''],
+})
+
+const mergeAvailableTiers = (product = {}) => {
+  const stored = product.availableTiers || []
+  return stored.length ? sortTierList(stored) : [...RESOLUTION_ORDER]
 }
 
 const emptyForm = (mediaType = MEDIA_TYPES.VIDEO) => ({
@@ -55,12 +109,14 @@ const emptyForm = (mediaType = MEDIA_TYPES.VIDEO) => ({
   subCategorySlug: '',
   brand: '',
   price: 499,
+  availableTiers: [...RESOLUTION_ORDER],
   resolutionPricing: buildDefaultTierConfig(499),
   rating: 4.5,
   description: '',
   images: ['', '', ''],
   demoVideo: '',
   videoPoster: '',
+  deliveryFiles: buildEmptyDeliveryFiles(),
   isActive: true,
   videoInfo: {
     quality: '4K UHD (3840×2160)',
@@ -101,6 +157,7 @@ const ProductForm = () => {
             subCategorySlug: product.subCategory || '',
             brand: product.brand || '',
             price: product.price,
+            availableTiers: mergeAvailableTiers(product),
             resolutionPricing: mergeTierConfig(product),
             rating: product.rating || 0,
             description: product.description || '',
@@ -111,6 +168,7 @@ const ProductForm = () => {
             ],
             demoVideo: product.demoVideo || '',
             videoPoster: product.videoPoster || '',
+            deliveryFiles: mergeDeliveryFiles(product),
             isActive: product.isActive ?? true,
             videoInfo: {
               quality: product.videoInfo?.quality || '',
@@ -133,6 +191,10 @@ const ProductForm = () => {
 
   const isVideo = form.mediaType === MEDIA_TYPES.VIDEO
   const isUniformPricing = form.pricingMode === PRICING_MODES.UNIFORM
+  const selectedTiers = useMemo(
+    () => sortTierList(form.availableTiers),
+    [form.availableTiers]
+  )
 
   const selectedCategory = useMemo(
     () => categories.find((category) => category.slug === form.categorySlug),
@@ -155,6 +217,57 @@ const ProductForm = () => {
             })
           : current.resolutionPricing,
     }))
+  }
+
+  const toggleAvailableTier = (tier) => {
+    setForm((current) => {
+      const isSelected = current.availableTiers.includes(tier)
+      const next = isSelected
+        ? current.availableTiers.filter((item) => item !== tier)
+        : [...current.availableTiers, tier]
+
+      if (next.length === 0) return current
+
+      return {
+        ...current,
+        availableTiers: sortTierList(next),
+      }
+    })
+  }
+
+  const addCustomTier = (name, resolution) => {
+    setForm((current) => ({
+      ...current,
+      availableTiers: sortTierList([...current.availableTiers, name]),
+      resolutionPricing: {
+        ...current.resolutionPricing,
+        [name]: {
+          resolution,
+          size: '',
+          price: current.price,
+        },
+      },
+      deliveryFiles: {
+        ...current.deliveryFiles,
+        [name]: current.deliveryFiles?.[name] || emptyDeliveryTier(),
+      },
+    }))
+  }
+
+  const removeCustomTier = (tier) => {
+    if (isStandardTier(tier)) return
+
+    setForm((current) => {
+      const { [tier]: _removedPricing, ...resolutionPricing } = current.resolutionPricing
+      const { [tier]: _removedDelivery, ...deliveryFiles } = current.deliveryFiles
+
+      return {
+        ...current,
+        availableTiers: current.availableTiers.filter((item) => item !== tier),
+        resolutionPricing,
+        deliveryFiles,
+      }
+    })
   }
 
   const updateTierField = (tier, field, value) => {
@@ -185,6 +298,7 @@ const ProductForm = () => {
       isActive: current.isActive,
       demoVideo: mediaType === MEDIA_TYPES.VIDEO ? current.demoVideo : '',
       videoPoster: mediaType === MEDIA_TYPES.VIDEO ? current.videoPoster : current.images[0] || '',
+      deliveryFiles: current.deliveryFiles,
     }))
   }
 
@@ -192,6 +306,16 @@ const ProductForm = () => {
     setForm((current) => ({
       ...current,
       videoInfo: { ...current.videoInfo, [field]: value },
+    }))
+  }
+
+  const updateDeliveryFile = (tier, data) => {
+    setForm((current) => ({
+      ...current,
+      deliveryFiles: {
+        ...current.deliveryFiles,
+        [tier]: data,
+      },
     }))
   }
 
@@ -214,16 +338,25 @@ const ProductForm = () => {
     if (!form.categorySlug) return 'Category is required'
     if (!imageCount) return 'At least one preview image is required'
     if (isVideo && !form.demoVideo.trim()) return 'Demo video URL is required for video products'
-    const missingSize = RESOLUTION_ORDER.find((tier) => {
+    if (!selectedTiers.length) return 'Select at least one quality tier'
+
+    const missingSize = selectedTiers.find((tier) => {
       const tierData = form.resolutionPricing?.[tier] || {}
       return !tierData.size?.trim()
     })
     if (missingSize) return `Set file size for ${missingSize}`
 
+    const missingResolution = selectedTiers.find((tier) => {
+      if (isStandardTier(tier)) return false
+      const tierData = form.resolutionPricing?.[tier] || {}
+      return !tierData.resolution?.trim()
+    })
+    if (missingResolution) return `Set dimensions for custom tier ${missingResolution}`
+
     if (form.pricingMode === PRICING_MODES.UNIFORM) {
       if (!Number(form.price) || Number(form.price) < 0) return 'Valid price is required'
     } else {
-      const missingPrice = RESOLUTION_ORDER.find(
+      const missingPrice = selectedTiers.find(
         (tier) => !Number(form.resolutionPricing?.[tier]?.price)
       )
       if (missingPrice) return `Enter a price for ${missingPrice}`
@@ -247,8 +380,9 @@ const ProductForm = () => {
       images: form.images.filter(Boolean),
       price: Number(form.price),
       rating: Number(form.rating),
+      availableTiers: selectedTiers,
       resolutionPricing: Object.fromEntries(
-        RESOLUTION_ORDER.map((tier) => {
+        selectedTiers.map((tier) => {
           const tierData = form.resolutionPricing[tier] || {}
           return [
             tier,
@@ -265,6 +399,28 @@ const ProductForm = () => {
       videoPoster: isVideo
         ? form.videoPoster || form.images.find(Boolean) || ''
         : form.images.find(Boolean) || '',
+      deliveryFiles: Object.fromEntries(
+        selectedTiers.map((tier) => {
+          const tierData = form.deliveryFiles?.[tier] || {}
+          const imageKeys = []
+          const imageFilenames = []
+          ;(tierData.imageKeys || []).forEach((key, index) => {
+            const trimmedKey = key?.trim()
+            if (!trimmedKey) return
+            imageKeys.push(trimmedKey)
+            imageFilenames.push(tierData.imageFilenames?.[index]?.trim() || '')
+          })
+          return [
+            tier,
+            {
+              videoKey: tierData.videoKey?.trim() || '',
+              videoFilename: tierData.videoFilename?.trim() || '',
+              imageKeys,
+              imageFilenames,
+            },
+          ]
+        })
+      ),
     }
 
     try {
@@ -384,10 +540,19 @@ const ProductForm = () => {
         <FormStep
           step="3"
           title="Video & image resolution"
-          hint="Set file size and price for each tier — dimensions are fixed per tier."
+          hint="Choose qualities first, then set file size and price for each selected tier."
           tone="violet"
         >
-          <PricingModeSelector value={form.pricingMode} onChange={updatePricingMode} />
+          <AvailableTierSelector
+            selected={form.availableTiers}
+            onToggle={toggleAvailableTier}
+            onAddCustom={addCustomTier}
+            onRemoveCustom={removeCustomTier}
+          />
+
+          <div className="mt-4">
+            <PricingModeSelector value={form.pricingMode} onChange={updatePricingMode} />
+          </div>
 
           {isUniformPricing && (
             <label className="mt-3 block max-w-xs text-sm">
@@ -404,7 +569,7 @@ const ProductForm = () => {
           )}
 
           <ResolutionTierEditor
-            order={RESOLUTION_ORDER}
+            order={selectedTiers}
             tiers={form.resolutionPricing}
             showPrice={!isUniformPricing}
             uniformPrice={form.price}
@@ -415,16 +580,19 @@ const ProductForm = () => {
         <FormStep
           step="4"
           title={isVideo ? 'Preview images + demo video' : 'Preview images'}
-          hint={isVideo ? 'Demo video shows last on product page.' : 'Customer preview images.'}
+          hint={isVideo ? 'Watermarked previews shown to customers on the storefront.' : 'Customer preview images.'}
           tone="emerald"
         >
           <div className="grid gap-2 sm:grid-cols-3">
             {form.images.map((image, index) => (
-              <input
+              <MediaUpload
                 key={index}
+                label={`Preview Image ${index + 1}`}
+                accept="image/jpeg,image/png,image/webp"
+                uploadType="preview-image"
                 value={image}
-                onChange={(e) => updateImage(index, e.target.value)}
-                className={inputClass}
+                onChange={(url) => updateImage(index, url)}
+                valueKind="url"
                 placeholder={`Image URL ${index + 1}`}
               />
             ))}
@@ -432,14 +600,24 @@ const ProductForm = () => {
 
           {isVideo && (
             <div className="mt-3 grid gap-3 lg:grid-cols-2">
-              <label className="block text-sm">
-                <span className="font-medium text-slate-700">Demo Video URL *</span>
-                <input required value={form.demoVideo} onChange={(e) => updateField('demoVideo', e.target.value)} className={inputClass} placeholder="https://..." />
-              </label>
-              <label className="block text-sm">
-                <span className="font-medium text-slate-700">Video Poster URL</span>
-                <input value={form.videoPoster} onChange={(e) => updateField('videoPoster', e.target.value)} className={inputClass} placeholder="Defaults to image 1" />
-              </label>
+              <MediaUpload
+                label="Demo Video *"
+                accept="video/mp4,video/webm,video/quicktime"
+                uploadType="preview-video"
+                value={form.demoVideo}
+                onChange={(url) => updateField('demoVideo', url)}
+                valueKind="url"
+                placeholder="https://..."
+              />
+              <MediaUpload
+                label="Video Poster"
+                accept="image/jpeg,image/png,image/webp"
+                uploadType="preview-image"
+                value={form.videoPoster}
+                onChange={(url) => updateField('videoPoster', url)}
+                valueKind="url"
+                placeholder="Defaults to image 1"
+              />
               <div className="lg:col-span-2">
                 <p className="mb-1 text-xs font-medium text-slate-600">Preview</p>
                 <VideoPreview src={form.demoVideo} poster={form.videoPoster || form.images[0]} />
@@ -450,8 +628,27 @@ const ProductForm = () => {
 
         <FormStep
           step="5"
-          title={isVideo ? 'Video file info' : 'Image file info'}
+          title="Original delivery files"
+          hint="Private files per resolution. Customers download these after purchase — not shown on storefront."
           tone="amber"
+        >
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {selectedTiers.map((tier) => (
+              <DeliveryTierEditor
+                key={tier}
+                tier={tier}
+                data={form.deliveryFiles?.[tier]}
+                isVideo={isVideo}
+                onChange={updateDeliveryFile}
+              />
+            ))}
+          </div>
+        </FormStep>
+
+        <FormStep
+          step="6"
+          title={isVideo ? 'Video file info' : 'Image file info'}
+          tone="slate"
         >
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block text-sm">

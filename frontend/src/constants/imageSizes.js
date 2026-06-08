@@ -86,11 +86,16 @@ export const resolveProductImageSizes = (product) => {
 /** @deprecated alias */
 export const buildImageSizes = buildScaledImageSizes;
 
-export const sortImageSizeEntries = (imageSizes = {}) =>
-  IMAGE_SIZE_ORDER.filter((key) => imageSizes[key]).map((key) => [
+export const sortImageSizeEntries = (imageSizes = {}) => {
+  const standard = IMAGE_SIZE_ORDER.filter((key) => imageSizes[key]).map((key) => [
     key,
     imageSizes[key],
   ]);
+  const custom = Object.keys(imageSizes)
+    .filter((key) => !IMAGE_SIZE_ORDER.includes(key))
+    .map((key) => [key, imageSizes[key]]);
+  return [...standard, ...custom];
+};
 
 export const getDefaultImageSize = (imageSizes = {}) => {
   if (imageSizes['4K']) return '4K';
