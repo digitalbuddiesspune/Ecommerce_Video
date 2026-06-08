@@ -13,7 +13,7 @@ const DualCategoryGrid = () => {
   if (sections.length === 0) return null;
 
   return (
-    <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
+    <section className="scroll-section mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-8">
         {sections.map((section) => (
           <article

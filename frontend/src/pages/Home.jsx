@@ -39,6 +39,7 @@ const Home = () => {
         products={latestProducts}
         viewAllLink={HOME_SECTIONS.freshDrops.viewAllLink}
         isLoading={loading}
+        tightTop
       />
 
       <DualCategoryGrid />

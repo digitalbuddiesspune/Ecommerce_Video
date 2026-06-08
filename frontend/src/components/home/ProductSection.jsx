@@ -10,8 +10,11 @@ const ProductSection = ({
   viewAllLink,
   bgColor = 'bg-white',
   isLoading = false,
+  tightTop = false,
 }) => (
-  <section className={`py-10 sm:py-14 lg:py-16 ${bgColor}`}>
+  <section
+    className={`scroll-section ${tightTop ? 'pt-[50px] pb-10 sm:pb-14 lg:pb-16' : 'py-10 sm:py-14 lg:py-16'} ${bgColor}`}
+  >
     <div className={PAGE_CONTAINER}>
       <div className="mb-6 flex flex-col gap-3 border-b border-gray-200 pb-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">

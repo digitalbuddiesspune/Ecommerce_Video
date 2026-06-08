@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useCatalog } from '../../context/CatalogContext';
 import { mapCategoryPanels } from '../../utils/categoryContent';
 import { CategoryAccordionSkeleton } from '../ui/HomeSectionSkeletons';
+import OptimizedImage from '../ui/OptimizedImage';
 
 const CategoryAccordion = () => {
   const { categories, loading } = useCatalog();
@@ -11,7 +12,7 @@ const CategoryAccordion = () => {
   if (panels.length === 0) return null;
 
   return (
-    <section className="mb-12 bg-white py-6 sm:mb-16 sm:py-8 md:mb-20">
+    <section className="scroll-section bg-white pt-6 pb-0 sm:pt-8">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mb-6 text-center sm:mb-8">
           <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-600 sm:text-xs">
@@ -28,10 +29,13 @@ const CategoryAccordion = () => {
               to={`/videos/${category.id}`}
               className="group relative aspect-[3/4] w-[70vw] max-w-[280px] shrink-0 snap-start overflow-hidden rounded-xl sm:w-[45vw]"
             >
-              <img
+              <OptimizedImage
                 src={category.image}
                 alt={category.label}
-                className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-active:scale-105"
+                width={560}
+                height={747}
+                quality={75}
+                className="absolute inset-0 h-full w-full object-cover"
                 loading="lazy"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
@@ -53,10 +57,13 @@ const CategoryAccordion = () => {
               to={`/videos/${category.id}`}
               className="group relative min-w-0 flex-1 cursor-pointer overflow-hidden rounded-lg transition-all duration-500 ease-out hover:flex-[3]"
             >
-              <img
+              <OptimizedImage
                 src={category.image}
                 alt={category.label}
-                className="absolute inset-0 h-full w-full scale-100 object-cover transition-all duration-500 lg:grayscale lg:group-hover:scale-105 lg:group-hover:grayscale-0"
+                width={800}
+                height={500}
+                quality={75}
+                className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                 loading="lazy"
               />
               <div className="absolute inset-0 bg-black/25 transition-colors duration-500 group-hover:bg-black/10" />

@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useCatalog } from '../../context/CatalogContext';
 import { mapFeaturedCollections } from '../../utils/categoryContent';
 import { FeaturedCollectionsSkeleton } from '../ui/HomeSectionSkeletons';
+import OptimizedImage from '../ui/OptimizedImage';
 
 const FeaturedCollections = () => {
   const { categories, loading } = useCatalog();
@@ -11,7 +12,7 @@ const FeaturedCollections = () => {
   if (collections.length === 0) return null;
 
   return (
-    <section className="mx-auto mb-8 mt-8 max-w-7xl px-4 sm:mt-12 sm:px-6 lg:px-8">
+    <section className="scroll-section mx-auto mb-8 mt-8 max-w-7xl px-4 sm:mt-12 sm:px-6 lg:px-8">
       <div className="mb-6 text-center sm:mb-8">
         <h2 className="text-2xl font-extrabold text-gray-900 sm:text-3xl">Editor Picks</h2>
         <p className="mt-1 text-sm text-gray-500 sm:text-base">Hand-selected bundles for agency and creator workflows.</p>
@@ -24,10 +25,13 @@ const FeaturedCollections = () => {
             to={collection.link}
             className="group relative block aspect-[16/9] overflow-hidden rounded-2xl shadow-md"
           >
-            <img
+            <OptimizedImage
               src={collection.image}
               alt={collection.title}
-              className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+              width={960}
+              height={540}
+              quality={75}
+              className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
               loading="lazy"
             />
             <div className={`absolute inset-0 bg-gradient-to-t ${collection.gradient}`} />

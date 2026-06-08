@@ -81,3 +81,28 @@ body {
     transform: scale(1.08);
   }
 }
+
+.hero-kenburns {
+  animation: kenburns 18s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+.hero-kenburns-paused {
+  animation-play-state: paused;
+}
+
+.scroll-section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 480px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-kenburns {
+    animation: none;
+    will-change: auto;
+  }
+
+  .animate-marquee {
+    animation: none;
+  }
+}

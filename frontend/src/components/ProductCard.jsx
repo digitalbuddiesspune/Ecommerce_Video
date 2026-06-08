@@ -6,8 +6,11 @@ import {
   isVideoProduct,
 } from '../constants/mediaTypes';
 import { formatCurrency } from '../utils/formatters';
-import { handleImageError } from '../utils/imageFallback';
+import OptimizedImage from './ui/OptimizedImage';
 import { IconPlay } from './icons/Icons';
+
+const THUMB_WIDTH = { compact: 400, default: 520 };
+const THUMB_HEIGHT = { compact: 500, default: 650 };
 
 const ProductCard = ({ product, compact = false }) => {
   const isVideo = isVideoProduct(product);
@@ -18,7 +21,7 @@ const ProductCard = ({ product, compact = false }) => {
 
   return (
     <article
-      className="group relative w-full min-w-0 translate-z-0 transform-gpu select-none"
+      className="group relative w-full min-w-0 translate-z-0 transform-gpu select-none [content-visibility:auto] [contain-intrinsic-size:auto_320px]"
       onMouseEnter={isVideo ? activatePreview : undefined}
       onMouseLeave={isVideo ? deactivatePreview : undefined}
     >
@@ -33,26 +36,27 @@ const ProductCard = ({ product, compact = false }) => {
             {qualityLabel}
           </span>
 
-          <img
+          <OptimizedImage
             src={poster}
             alt={product.name}
-            decoding="async"
+            width={THUMB_WIDTH[compact ? 'compact' : 'default']}
+            height={THUMB_HEIGHT[compact ? 'compact' : 'default']}
+            quality={75}
             loading="lazy"
-            className={`absolute inset-0 h-full w-full object-cover transition-all duration-500 ${
-              isVideo && isPreviewActive ? 'opacity-0 scale-105' : 'opacity-100 scale-100'
+            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${
+              isVideo && isPreviewActive ? 'opacity-0' : 'opacity-100'
             }`}
-            onError={(e) => handleImageError(e)}
           />
 
           {isVideo && product.demoVideo && (
             <video
               ref={videoRef}
               src={product.demoVideo}
-              poster={product.videoPoster}
+              poster={poster}
               muted
               loop
               playsInline
-              preload="metadata"
+              preload="none"
               className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${
                 isPreviewActive ? 'z-10 opacity-100' : 'z-0 opacity-0'
               }`}
@@ -61,14 +65,14 @@ const ProductCard = ({ product, compact = false }) => {
 
           {isVideo && (
             <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/90 opacity-0 shadow-lg backdrop-blur-sm transition-opacity duration-300 group-hover:opacity-100">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/95 opacity-0 shadow-lg transition-opacity duration-300 group-hover:opacity-100">
                 <IconPlay className="ml-0.5 h-5 w-5 text-gray-900" />
               </div>
             </div>
           )}
 
           <div className={`absolute z-20 ${compact ? 'inset-x-1.5 bottom-2' : 'inset-x-2 bottom-3 sm:inset-x-4'}`}>
-            <div className={`flex items-center justify-between rounded-lg bg-white/95 shadow-[0_4px_12px_rgba(0,0,0,0.1)] backdrop-blur-md ${compact ? 'h-9 pl-2 pr-1' : 'h-10 pl-3 pr-1 sm:h-12'}`}>
+            <div className={`flex items-center justify-between rounded-lg bg-white/95 shadow-[0_4px_12px_rgba(0,0,0,0.1)] ${compact ? 'h-9 pl-2 pr-1' : 'h-10 pl-3 pr-1 sm:h-12'}`}>
               <div className="flex flex-col justify-center leading-none">
                 <span className={`font-bold text-gray-900 ${compact ? 'text-xs' : 'text-sm sm:text-base'}`}>
                   {formatCurrency(finalPrice)}

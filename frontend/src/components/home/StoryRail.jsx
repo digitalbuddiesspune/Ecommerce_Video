@@ -1,5 +1,6 @@
 import { BRAND } from '../../config/brand';
 import { StoryRailSkeleton } from '../ui/HomeSectionSkeletons';
+import OptimizedImage from '../ui/OptimizedImage';
 
 const StoryRail = ({ stories = [], onStorySelect, isLoading = false }) => {
   if (isLoading) return <StoryRailSkeleton />;
@@ -19,9 +20,12 @@ const StoryRail = ({ stories = [], onStorySelect, isLoading = false }) => {
               onClick={() => onStorySelect(index)}
               className="group flex w-[72px] shrink-0 snap-start flex-col items-center gap-1.5 sm:w-auto sm:gap-2"
             >              <span className="rounded-full bg-gradient-to-tr from-gray-900 to-gray-600 p-[2px] transition-transform group-hover:scale-105">
-                <img
+                <OptimizedImage
                   src={story.image}
                   alt={story.label}
+                  width={160}
+                  height={160}
+                  quality={75}
                   className="h-16 w-16 rounded-full border-2 border-white object-cover sm:h-20 sm:w-20"
                   loading="lazy"
                 />

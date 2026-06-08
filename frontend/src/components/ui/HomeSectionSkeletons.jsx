@@ -25,7 +25,7 @@ export const StoryRailSkeleton = () => (
 );
 
 export const CategoryAccordionSkeleton = () => (
-  <section className="mb-12 bg-white py-6 sm:mb-16 sm:py-8 md:mb-20">
+  <section className="bg-white pt-6 pb-0 sm:pt-8">
     <div className={PAGE_CONTAINER}>
       <div className="mb-6 text-center sm:mb-8">
         <div className="mx-auto h-3 w-36 animate-pulse rounded bg-gray-100" />
